@@ -1,0 +1,275 @@
+---
+title: 'Utilities'
+description: 'API reference for the utility functions in the Graphora client library'
+---
+
+# Utilities
+
+The Graphora client library provides utility functions for common tasks. This page provides a reference for all the utility functions in the library.
+
+## YAML Utilities
+
+### load_yaml
+
+Load YAML from a file.
+
+```python
+def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
+    """
+    Load YAML from a file.
+    
+    Args:
+        file_path: Path to the YAML file
+        
+    Returns:
+        Dictionary containing the parsed YAML
+    """
+```
+
+#### Example
+
+```python
+from graphora.utils import load_yaml
+
+# Load ontology from file
+ontology_data = load_yaml("ontology.yaml")
+print(f"Ontology name: {ontology_data.get('name')}")
+```
+
+### save_yaml
+
+Save data as YAML to a file.
+
+```python
+def save_yaml(data: Dict[str, Any], file_path: Union[str, Path]) -> None:
+    """
+    Save data as YAML to a file.
+    
+    Args:
+        data: Data to save
+        file_path: Path to save the YAML file
+    """
+```
+
+#### Example
+
+```python
+from graphora.utils import save_yaml
+
+# Create ontology data
+ontology_data = {
+    "version": "1.0",
+    "name": "Company Knowledge Graph",
+    "description": "Ontology for representing companies and people",
+    "entities": [
+        {
+            "name": "Person",
+            "properties": [
+                {"name": "name", "type": "string", "required": True}
+            ]
+        }
+    ]
+}
+
+# Save to file
+save_yaml(ontology_data, "new_ontology.yaml")
+```
+
+## Environment Utilities
+
+### get_api_url
+
+Get the API URL for the specified environment.
+
+```python
+def get_api_url(environment: Optional[str] = None) -> str:
+    """
+    Get the API URL for the specified environment.
+    
+    Args:
+        environment: Environment to get the URL for (e.g., 'prod', 'staging')
+                    If None, uses the GRAPHORA_ENVIRONMENT environment variable
+                    or defaults to 'prod'
+                    
+    Returns:
+        API URL for the specified environment
+    """
+```
+
+#### Example
+
+```python
+from graphora.utils import get_api_url
+from graphora import GraphoraClient
+
+# Get URL for production environment
+prod_url = get_api_url("prod")
+prod_client = GraphoraClient(base_url=prod_url)
+
+# Get URL for staging environment
+staging_url = get_api_url("staging")
+staging_client = GraphoraClient(base_url=staging_url)
+
+# Get URL from environment variable
+# export GRAPHORA_ENVIRONMENT=dev
+default_url = get_api_url()
+default_client = GraphoraClient(base_url=default_url)
+```
+
+## Best Practices
+
+### Working with YAML
+
+When working with YAML files, consider these best practices:
+
+1. **Handle Exceptions**: YAML parsing can fail if the file is malformed
+   ```python
+   from graphora.utils import load_yaml
+   import yaml
+   
+   try:
+       ontology_data = load_yaml("ontology.yaml")
+   except yaml.YAMLError as e:
+       print(f"Error parsing YAML: {str(e)}")
+   ```
+
+2. **Validate Paths**: Ensure file paths exist before trying to load or save
+   ```python
+   from pathlib import Path
+   from graphora.utils import load_yaml
+   
+   file_path = Path("ontology.yaml")
+   if file_path.exists():
+       ontology_data = load_yaml(file_path)
+   else:
+       print(f"File not found: {file_path}")
+   ```
+
+3. **Use Path Objects**: Path objects handle cross-platform path issues
+   ```python
+   from pathlib import Path
+   from graphora.utils import save_yaml
+   
+   # Create directory if it doesn't exist
+   output_dir = Path("ontologies")
+   output_dir.mkdir(exist_ok=True)
+   
+   # Save to file in directory
+   output_file = output_dir / "new_ontology.yaml"
+   save_yaml(ontology_data, output_file)
+   ```
+
+### Working with Environment Variables
+
+When working with environment variables, consider these best practices:
+
+1. **Provide Defaults**: Always provide sensible defaults
+   ```python
+   import os
+   
+   api_key = os.environ.get("GRAPHORA_API_KEY", "")
+   if not api_key:
+       print("Warning: No API key provided")
+   ```
+
+2. **Use Environment Files**: Consider using `.env` files for local development
+   ```python
+   # Install python-dotenv
+   # pip install python-dotenv
+   
+   from dotenv import load_dotenv
+   
+   # Load variables from .env file
+   load_dotenv()
+   
+   # Now environment variables are available
+   from graphora.utils import get_api_url
+   api_url = get_api_url()
+   ```
+
+3. **Environment-Specific Configuration**: Use different configurations for different environments
+   ```python
+   import os
+   from graphora.utils import get_api_url
+   from graphora import GraphoraClient
+   
+   # Get environment from environment variable or default to prod
+   env = os.environ.get("GRAPHORA_ENVIRONMENT", "prod")
+   
+   # Get API URL for environment
+   api_url = get_api_url(env)
+   
+   # Create client with environment-specific settings
+   timeout = 60 if env == "prod" else 120  # Longer timeout for non-prod
+   client = GraphoraClient(base_url=api_url, timeout=timeout)
+   ```
+
+## Complete Example
+
+Here's a complete example of using the utility functions:
+
+```python
+import os
+from pathlib import Path
+from graphora.utils import load_yaml, save_yaml, get_api_url
+from graphora import GraphoraClient
+from graphora.exceptions import GraphoraAPIError, GraphoraClientError
+
+# Set up environment
+os.environ["GRAPHORA_ENVIRONMENT"] = "staging"
+
+# Get API URL for current environment
+api_url = get_api_url()
+print(f"Using API URL: {api_url}")
+
+# Initialize client
+client = GraphoraClient(base_url=api_url)
+
+try:
+    # Load ontology from file
+    ontology_path = Path("ontologies/company.yaml")
+    if not ontology_path.exists():
+        print(f"Ontology file not found: {ontology_path}")
+        exit(1)
+        
+    ontology_data = load_yaml(ontology_path)
+    print(f"Loaded ontology: {ontology_data.get('name')}")
+    
+    # Convert to YAML string
+    import yaml
+    ontology_yaml = yaml.dump(ontology_data, default_flow_style=False)
+    
+    # Register ontology
+    ontology_response = client.register_ontology(ontology_yaml)
+    ontology_id = ontology_response.id
+    print(f"Registered ontology with ID: {ontology_id}")
+    
+    # Retrieve the ontology
+    retrieved_yaml = client.get_ontology(ontology_id)
+    
+    # Parse the retrieved YAML
+    retrieved_data = yaml.safe_load(retrieved_yaml)
+    
+    # Save to a new file
+    output_dir = Path("output")
+    output_dir.mkdir(exist_ok=True)
+    output_path = output_dir / f"ontology_{ontology_id}.yaml"
+    
+    save_yaml(retrieved_data, output_path)
+    print(f"Saved retrieved ontology to: {output_path}")
+    
+except GraphoraAPIError as e:
+    print(f"API Error (Status {e.status_code}): {str(e)}")
+except GraphoraClientError as e:
+    print(f"Client Error: {str(e)}")
+except yaml.YAMLError as e:
+    print(f"YAML Error: {str(e)}")
+except Exception as e:
+    print(f"Unexpected error: {str(e)}")
+```
+
+## Next Steps
+
+- Check out the [Client](/client/api/client) reference
+- Learn about [Models](/client/api/models)
+- Explore the [Exceptions](/client/api/exceptions) module

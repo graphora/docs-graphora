@@ -1,0 +1,194 @@
+---
+title: 'Transformation'
+description: 'Understanding the document transformation process in Graphora'
+---
+
+# Document Transformation
+
+Document transformation is the process of converting unstructured documents into structured graph data based on your ontology. This is a core capability of Graphora that allows you to extract meaningful entities and relationships from your documents.
+
+## The Transformation Process
+
+When you submit documents to Graphora for transformation, the following steps occur:
+
+<Steps>
+  <Step title="Document Upload">
+    Documents are uploaded to the Graphora platform and validated.
+  </Step>
+  <Step title="Parsing">
+    Documents are parsed into a format that can be processed by the extraction pipeline.
+  </Step>
+  <Step title="Entity Extraction">
+    Entities defined in your ontology are identified and extracted from the documents.
+  </Step>
+  <Step title="Relationship Extraction">
+    Relationships between entities are identified based on the ontology definitions.
+  </Step>
+  <Step title="Validation">
+    Extracted entities and relationships are validated against the ontology constraints.
+  </Step>
+  <Step title="Graph Construction">
+    A graph is constructed from the validated entities and relationships.
+  </Step>
+</Steps>
+
+## Supported Document Types
+
+Graphora supports a variety of document types for transformation:
+
+- **Text files** (`.txt`)
+- **PDF documents** (`.pdf`)
+- **PPT documents** (`.ppt`)
+- **PPTX documents** (`.pptx`)
+- **Word documents** (`.doc`)
+- **Word documents** (`.docx`)
+- **CSV files** (`.csv`)
+- **JSON files** (`.json`)
+- **YAML files** (`.yaml`)
+- **XML files** (`.xml`)
+
+## Transformation in the Client Library
+
+The Graphora client library provides methods for transforming documents and monitoring the transformation process:
+
+### Transforming Documents
+
+```python
+from graphora import GraphoraClient
+from graphora.models import DocumentMetadata, DocumentType
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Create metadata for the files (optional)
+metadata = [
+    DocumentMetadata(
+        source="company_info.txt",
+        document_type=DocumentType.TXT,
+        tags=["company", "example"],
+        custom_metadata={"priority": "high"}
+    )
+]
+
+# Transform documents
+transform_response = client.transform(
+    ontology_id="your-ontology-id",
+    files=["document1.pdf", "document2.txt"],
+    metadata=metadata
+)
+
+transform_id = transform_response.id
+```
+
+### Checking Transformation Status
+
+```python
+# Get the current status
+status = client.get_transform_status(transform_id)
+print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+
+# Or wait for completion
+final_status = client.wait_for_transform(transform_id)
+print(f"Final status: {final_status.status}")
+```
+
+### Retrieving the Transformed Graph
+
+```python
+# Get the resulting graph
+graph = client.get_transformed_graph(transform_id=transform_id)
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
+# Print some node details
+for node in graph.nodes[:3]:  # First 3 nodes
+    print(f"Node {node.id}: {node.labels}")
+    print(f"  Properties: {node.properties}")
+```
+
+## Transformation Stages
+
+The transformation process goes through several stages, which you can monitor through the `stage_progress` field in the transformation status:
+
+| Stage | Description |
+|-------|-------------|
+| `UPLOAD` | Documents are being uploaded to the platform |
+| `PARSING` | Documents are being parsed into a processable format |
+| `EXTRACTION` | Entities and relationships are being extracted |
+| `VALIDATION` | Extracted data is being validated against the ontology |
+| `INDEXING` | Data is being indexed for efficient querying |
+| `COMPLETED` | Transformation is complete |
+
+## Handling Transformation Errors
+
+If a transformation fails, you can check the `error` field in the transformation status:
+
+```python
+status = client.get_transform_status(transform_id)
+if status.status == "FAILED":
+    print(f"Transformation failed: {status.error}")
+```
+
+## Best Practices for Document Transformation
+
+To get the best results from document transformation:
+
+1. **Ensure your ontology is well-defined**: The quality of extraction depends on your ontology
+2. **Use appropriate document types**: Different document types may yield different results
+3. **Monitor transformation progress**: Long documents may take time to process
+4. **Handle errors gracefully**: Check for and handle transformation errors
+5. **Clean up after completion**: Use `cleanup_transform` to remove temporary files
+
+## Example: Complete Transformation Workflow
+
+Here's a complete example of transforming documents and handling the results:
+
+```python
+from graphora import GraphoraClient
+import time
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Transform documents
+transform_response = client.transform(
+    ontology_id="your-ontology-id",
+    files=["document1.pdf", "document2.txt"]
+)
+transform_id = transform_response.id
+print(f"Transform ID: {transform_id}")
+
+# Monitor progress
+max_checks = 10
+for i in range(max_checks):
+    status = client.get_transform_status(transform_id)
+    print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+    
+    # Print stage progress
+    for stage in status.stage_progress:
+        print(f"  {stage.stage}: {stage.progress:.2%}")
+    
+    if status.status in ["COMPLETED", "FAILED"]:
+        break
+        
+    if i < max_checks - 1:
+        print("Waiting 5 seconds before checking again...")
+        time.sleep(5)
+
+# Handle completion or failure
+if status.status == "COMPLETED":
+    # Get the resulting graph
+    graph = client.get_transformed_graph(transform_id=transform_id)
+    print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+    
+    # Process the graph...
+    
+elif status.status == "FAILED":
+    print(f"Transformation failed: {status.error}")
+
+# Clean up
+client.cleanup_transform(transform_id)
+```
+
+## Next Steps
+
+- Learn about [Merging](/client/concepts/merging) extracted data
+- Explore the [Graph](/client/concepts/graph) data model
+- Check out the [API Reference](/client/api/client) for detailed information

@@ -1,0 +1,178 @@
+---
+title: 'Ontology Examples'
+description: 'Examples of working with ontologies in Graphora'
+---
+
+# Ontology Examples
+
+This page provides practical examples of working with ontologies in the Graphora client library.
+
+## Creating and Registering an Ontology
+
+The following example demonstrates how to create an ontology definition and register it with Graphora:
+
+```python
+from graphora import GraphoraClient
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Define your ontology
+ontology_yaml = """
+version: 1
+entities:
+  Person:
+    properties:
+      name:
+        type: string
+        unique: true
+        required: true
+      age:
+        type: integer
+      email:
+        type: string
+        index: true
+    relationships:
+      works_at:
+        target: Company
+        cardinality: many_to_one
+      knows:
+        target: Person
+        cardinality: many_to_many
+  
+  Company:
+    properties:
+      name:
+        type: string
+        unique: true
+        required: true
+      industry:
+        type: string
+      founded_year:
+        type: integer
+    relationships:
+      has_subsidiary:
+        target: Company
+        cardinality: one_to_many
+"""
+
+# Register the ontology
+response = client.register_ontology(ontology_yaml)
+print(f"Ontology registered with ID: {response.ontology_id}")
+```
+
+## Loading an Ontology from a File
+
+You can also load an ontology from a YAML file:
+
+```python
+import os
+from graphora import GraphoraClient
+from graphora.utils import load_yaml
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Load the ontology from a file
+ontology_path = os.path.join("path", "to", "ontology.yaml")
+ontology_yaml = load_yaml(ontology_path)
+
+# Register the ontology
+response = client.register_ontology(ontology_yaml)
+print(f"Ontology registered with ID: {response.ontology_id}")
+```
+
+## Validating an Ontology
+
+Before registering an ontology, you might want to validate it locally:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import Ontology
+from pydantic import ValidationError
+
+# Define your ontology
+ontology_yaml = """
+version: 1
+entities:
+  Person:
+    properties:
+      name:
+        type: string
+      age:
+        type: integer
+"""
+
+try:
+    # Parse and validate the ontology
+    ontology = Ontology.parse_yaml(ontology_yaml)
+    print("Ontology is valid!")
+    
+    # Now you can register it
+    client = GraphoraClient(api_key="your_api_key")
+    response = client.register_ontology(ontology_yaml)
+    print(f"Ontology registered with ID: {response.ontology_id}")
+    
+except ValidationError as e:
+    print(f"Ontology validation failed: {e}")
+```
+
+## Updating an Existing Ontology
+
+To update an existing ontology, you can use the same `register_ontology` method with an updated definition:
+
+```python
+from graphora import GraphoraClient
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Define your updated ontology
+updated_ontology_yaml = """
+version: 2
+entities:
+  Person:
+    properties:
+      name:
+        type: string
+        unique: true
+        required: true
+      age:
+        type: integer
+      email:
+        type: string
+        index: true
+      phone:  # New property added
+        type: string
+    relationships:
+      works_at:
+        target: Company
+        cardinality: many_to_one
+      knows:
+        target: Person
+        cardinality: many_to_many
+  
+  Company:
+    properties:
+      name:
+        type: string
+        unique: true
+        required: true
+      industry:
+        type: string
+      founded_year:
+        type: integer
+      website:  # New property added
+        type: string
+    relationships:
+      has_subsidiary:
+        target: Company
+        cardinality: one_to_many
+"""
+
+# Register the updated ontology
+response = client.register_ontology(updated_ontology_yaml)
+print(f"Updated ontology registered with ID: {response.ontology_id}")
+```
+
+These examples demonstrate the basic operations you can perform with ontologies in the Graphora client library. For more detailed information about ontology structure and options, see the [Ontology Concepts](/client/concepts/ontology) page.

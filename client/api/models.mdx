@@ -1,0 +1,460 @@
+---
+title: 'Models'
+description: 'API reference for the data models in the Graphora client library'
+---
+
+# Models
+
+The Graphora client library uses Pydantic models for type-safe data handling. This page provides a reference for all the data models used in the library.
+
+## Core Models
+
+### DocumentType
+
+An enumeration of supported document types.
+
+```python
+class DocumentType(str, Enum):
+    """Document types supported by Graphora."""
+    TXT = "txt"
+    PDF = "pdf"
+    DOCX = "docx"
+    CSV = "csv"
+    JSON = "json"
+    YAML = "yaml"
+    XML = "xml"
+```
+
+### DocumentMetadata
+
+Metadata for a document.
+
+```python
+class DocumentMetadata(BaseModel):
+    """Metadata for a document."""
+    source: str
+    document_type: DocumentType
+    tags: List[str] = Field(default_factory=list)
+    custom_metadata: Dict[str, Any] = Field(default_factory=dict)
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `source` | `str` | Source identifier for the document | Required |
+| `document_type` | `DocumentType` | Type of the document | Required |
+| `tags` | `List[str]` | Tags for categorizing the document | `[]` |
+| `custom_metadata` | `Dict[str, Any]` | Custom metadata as key-value pairs | `{}` |
+
+### DocumentInfo
+
+Information about a document.
+
+```python
+class DocumentInfo(BaseModel):
+    """Information about a document."""
+    filename: str
+    size: int
+    document_type: DocumentType
+    metadata: Optional[DocumentMetadata] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `filename` | `str` | Name of the document file | Required |
+| `size` | `int` | Size of the document in bytes | Required |
+| `document_type` | `DocumentType` | Type of the document | Required |
+| `metadata` | `Optional[DocumentMetadata]` | Metadata for the document | `None` |
+
+## Ontology Models
+
+### OntologyResponse
+
+Response from ontology validation.
+
+```python
+class OntologyResponse(BaseModel):
+    """Response from ontology validation."""
+    id: str
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `str` | Unique ID for the validated ontology | Required |
+
+## Transformation Models
+
+### TransformationStage
+
+Stages of the transformation process.
+
+```python
+class TransformationStage(str, Enum):
+    """Stages of the transformation process."""
+    UPLOAD = "upload"
+    PARSING = "parsing"
+    EXTRACTION = "extraction"
+    VALIDATION = "validation"
+    INDEXING = "indexing"
+    COMPLETED = "completed"
+```
+
+### ResourceMetrics
+
+Resource usage metrics for a transformation.
+
+```python
+class ResourceMetrics(BaseModel):
+    """Resource usage metrics for a transformation."""
+    cpu_percent: float = 0.0
+    memory_mb: float = 0.0
+    duration_seconds: float = 0.0
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `cpu_percent` | `float` | CPU usage percentage | `0.0` |
+| `memory_mb` | `float` | Memory usage in megabytes | `0.0` |
+| `duration_seconds` | `float` | Duration in seconds | `0.0` |
+
+### StageProgress
+
+Progress information for a transformation stage.
+
+```python
+class StageProgress(BaseModel):
+    """Progress information for a transformation stage."""
+    stage: TransformationStage
+    progress: float = 0.0  # 0.0 to 1.0
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    metrics: Optional[ResourceMetrics] = None
+    message: Optional[str] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `stage` | `TransformationStage` | The stage of transformation | Required |
+| `progress` | `float` | Progress as a value between 0.0 and 1.0 | `0.0` |
+| `started_at` | `Optional[datetime]` | When the stage started | `None` |
+| `completed_at` | `Optional[datetime]` | When the stage completed | `None` |
+| `metrics` | `Optional[ResourceMetrics]` | Resource usage metrics | `None` |
+| `message` | `Optional[str]` | Status message | `None` |
+
+### TransformStatus
+
+Status of a transformation.
+
+```python
+class TransformStatus(BaseModel):
+    """Status of a transformation."""
+    transform_id: str
+    status: str
+    progress: float = 0.0  # 0.0 to 1.0
+    stage_progress: List[StageProgress] = Field(default_factory=list)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error: Optional[str] = None
+    resource_metrics: Optional[ResourceMetrics] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `transform_id` | `str` | ID of the transformation | Required |
+| `status` | `str` | Current status (e.g., "PENDING", "RUNNING", "COMPLETED", "FAILED") | Required |
+| `progress` | `float` | Overall progress as a value between 0.0 and 1.0 | `0.0` |
+| `stage_progress` | `List[StageProgress]` | Progress for each stage | `[]` |
+| `started_at` | `Optional[datetime]` | When the transformation started | `None` |
+| `completed_at` | `Optional[datetime]` | When the transformation completed | `None` |
+| `error` | `Optional[str]` | Error message if the transformation failed | `None` |
+| `resource_metrics` | `Optional[ResourceMetrics]` | Resource usage metrics | `None` |
+
+### TransformResponse
+
+Response from document upload.
+
+```python
+class TransformResponse(BaseModel):
+    """Response from document upload."""
+    id: str
+    upload_timestamp: datetime
+    status: str
+    document_info: DocumentInfo
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `str` | ID for the transformation | Required |
+| `upload_timestamp` | `datetime` | When the documents were uploaded | Required |
+| `status` | `str` | Initial status of the transformation | Required |
+| `document_info` | `DocumentInfo` | Information about the uploaded documents | Required |
+
+## Merge Models
+
+### MergeStatus
+
+Status of a merge process.
+
+```python
+class MergeStatus(BaseModel):
+    """Status of a merge process."""
+    merge_id: str
+    status: str
+    progress: float = 0.0  # 0.0 to 1.0
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    error: Optional[str] = None
+    conflicts_count: int = 0
+    resolved_count: int = 0
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `merge_id` | `str` | ID of the merge process | Required |
+| `status` | `str` | Current status (e.g., "STARTED", "RUNNING", "COMPLETED", "FAILED") | Required |
+| `progress` | `float` | Progress as a value between 0.0 and 1.0 | `0.0` |
+| `start_time` | `Optional[datetime]` | When the merge started | `None` |
+| `end_time` | `Optional[datetime]` | When the merge completed | `None` |
+| `error` | `Optional[str]` | Error message if the merge failed | `None` |
+| `conflicts_count` | `int` | Number of conflicts detected | `0` |
+| `resolved_count` | `int` | Number of conflicts resolved | `0` |
+
+### MergeResponse
+
+Response from starting a merge process.
+
+```python
+class MergeResponse(BaseModel):
+    """Response from starting a merge process."""
+    merge_id: str
+    status: str
+    start_time: datetime
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `merge_id` | `str` | ID of the merge process | Required |
+| `status` | `str` | Initial status of the merge | Required |
+| `start_time` | `datetime` | When the merge started | Required |
+
+### ResolutionStrategy
+
+Strategies for resolving conflicts.
+
+```python
+class ResolutionStrategy(str, Enum):
+    """Strategies for resolving conflicts."""
+    ACCEPT = "accept"
+    REJECT = "reject"
+    MODIFY = "modify"
+    MERGE = "merge"
+```
+
+### ConflictResolution
+
+Information about a conflict requiring resolution.
+
+```python
+class ConflictResolution(BaseModel):
+    """Information about a conflict requiring resolution."""
+    id: str
+    entity_id: str
+    entity_type: str
+    properties: Dict[str, Any]
+    conflict_type: str
+    source: Optional[str] = None
+    target: Optional[str] = None
+    suggested_resolution: Optional[ResolutionStrategy] = None
+    confidence: Optional[float] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `str` | ID of the conflict | Required |
+| `entity_id` | `str` | ID of the entity with the conflict | Required |
+| `entity_type` | `str` | Type of the entity | Required |
+| `properties` | `Dict[str, Any]` | Properties of the entity | Required |
+| `conflict_type` | `str` | Type of conflict | Required |
+| `source` | `Optional[str]` | Source of the conflict | `None` |
+| `target` | `Optional[str]` | Target of the conflict | `None` |
+| `suggested_resolution` | `Optional[ResolutionStrategy]` | Suggested resolution strategy | `None` |
+| `confidence` | `Optional[float]` | Confidence in the suggested resolution | `None` |
+
+## Graph Models
+
+### Node
+
+A node in the graph.
+
+```python
+class Node(BaseModel):
+    """A node in the graph."""
+    id: str
+    labels: List[str]
+    properties: Dict[str, Any]
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `str` | Unique ID for the node | Required |
+| `labels` | `List[str]` | Labels (entity types) for the node | Required |
+| `properties` | `Dict[str, Any]` | Properties of the node as key-value pairs | Required |
+
+### Edge
+
+An edge in the graph.
+
+```python
+class Edge(BaseModel):
+    """An edge in the graph."""
+    id: str
+    type: str
+    source: str
+    target: str
+    properties: Dict[str, Any] = Field(default_factory=dict)
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `str` | Unique ID for the edge | Required |
+| `type` | `str` | Type of the edge (relationship type) | Required |
+| `source` | `str` | ID of the source node | Required |
+| `target` | `str` | ID of the target node | Required |
+| `properties` | `Dict[str, Any]` | Properties of the edge as key-value pairs | `{}` |
+
+### GraphResponse
+
+Response containing graph data.
+
+```python
+class GraphResponse(BaseModel):
+    """Response containing graph data."""
+    nodes: List[Node] = Field(default_factory=list)
+    edges: List[Edge] = Field(default_factory=list)
+    total_nodes: Optional[int] = None
+    total_edges: Optional[int] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `nodes` | `List[Node]` | List of nodes in the graph | `[]` |
+| `edges` | `List[Edge]` | List of edges in the graph | `[]` |
+| `total_nodes` | `Optional[int]` | Total number of nodes (for pagination) | `None` |
+| `total_edges` | `Optional[int]` | Total number of edges (for pagination) | `None` |
+
+### NodeChange
+
+A change to a node in the graph.
+
+```python
+class NodeChange(BaseModel):
+    """A change to a node in the graph."""
+    id: Optional[str] = None  # None for new nodes
+    labels: List[str]
+    properties: Dict[str, Any]
+    is_deleted: bool = False
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `Optional[str]` | ID of the node to change (None for new nodes) | `None` |
+| `labels` | `List[str]` | Labels for the node | Required |
+| `properties` | `Dict[str, Any]` | Properties of the node | Required |
+| `is_deleted` | `bool` | Whether the node should be deleted | `False` |
+
+### EdgeChange
+
+A change to an edge in the graph.
+
+```python
+class EdgeChange(BaseModel):
+    """A change to an edge in the graph."""
+    id: Optional[str] = None  # None for new edges
+    type: str
+    source: str
+    target: str
+    properties: Dict[str, Any] = Field(default_factory=dict)
+    is_deleted: bool = False
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `id` | `Optional[str]` | ID of the edge to change (None for new edges) | `None` |
+| `type` | `str` | Type of the edge | Required |
+| `source` | `str` | ID of the source node | Required |
+| `target` | `str` | ID of the target node | Required |
+| `properties` | `Dict[str, Any]` | Properties of the edge | `{}` |
+| `is_deleted` | `bool` | Whether the edge should be deleted | `False` |
+
+### SaveGraphRequest
+
+Request to save changes to the graph.
+
+```python
+class SaveGraphRequest(BaseModel):
+    """Request to save changes to the graph."""
+    nodes: List[NodeChange] = Field(default_factory=list)
+    edges: List[EdgeChange] = Field(default_factory=list)
+    version: Optional[int] = None  # For optimistic concurrency control
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `nodes` | `List[NodeChange]` | List of node changes | `[]` |
+| `edges` | `List[EdgeChange]` | List of edge changes | `[]` |
+| `version` | `Optional[int]` | Version for optimistic concurrency control | `None` |
+
+### SaveGraphResponse
+
+Response from saving changes to the graph.
+
+```python
+class SaveGraphResponse(BaseModel):
+    """Response from saving changes to the graph."""
+    data: GraphResponse
+    messages: Optional[List[str]] = None
+```
+
+#### Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `data` | `GraphResponse` | Updated graph data | Required |
+| `messages` | `Optional[List[str]]` | Messages from the server | `None` |
+
+## Next Steps
+
+- Check out the [Client](/client/api/client) reference
+- Learn about [Exceptions](/client/api/exceptions)
+- Explore the [Utilities](/client/api/utils) module

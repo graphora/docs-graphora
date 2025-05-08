@@ -1,0 +1,294 @@
+---
+title: 'Exceptions'
+description: 'API reference for the exceptions in the Graphora client library'
+---
+
+# Exceptions
+
+The Graphora client library defines custom exceptions for error handling. This page provides a reference for all the exceptions used in the library.
+
+## Exception Hierarchy
+
+The exceptions in the Graphora client library follow a hierarchical structure:
+
+```
+Exception
+└── GraphoraError
+    ├── GraphoraClientError
+    └── GraphoraAPIError
+```
+
+## GraphoraError
+
+Base exception for all Graphora errors.
+
+```python
+class GraphoraError(Exception):
+    """Base exception for all Graphora errors."""
+    pass
+```
+
+This is the parent class for all Graphora-specific exceptions. It inherits from Python's built-in `Exception` class.
+
+### Example
+
+```python
+try:
+    # Some Graphora operation
+    pass
+except GraphoraError as e:
+    print(f"A Graphora error occurred: {str(e)}")
+```
+
+## GraphoraClientError
+
+Exception raised for client-side errors.
+
+```python
+class GraphoraClientError(GraphoraError):
+    """Exception raised for client-side errors."""
+    pass
+```
+
+This exception is raised when an error occurs on the client side, such as:
+- Invalid input parameters
+- Network connectivity issues
+- Timeout errors
+- JSON parsing errors
+
+### Example
+
+```python
+try:
+    # Some Graphora operation
+    client.wait_for_transform("invalid-id", timeout=1)
+except GraphoraClientError as e:
+    print(f"Client error: {str(e)}")
+```
+
+## GraphoraAPIError
+
+Exception raised for API errors.
+
+```python
+class GraphoraAPIError(GraphoraError):
+    """Exception raised for API errors."""
+    
+    def __init__(self, message: str, status_code: int = None):
+        self.status_code = status_code
+        super().__init__(message)
+```
+
+This exception is raised when the Graphora API returns an error response, such as:
+- Authentication errors
+- Authorization errors
+- Resource not found
+- Validation errors
+- Server errors
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `message` | `str` | Error message from the API |
+| `status_code` | `int` | HTTP status code returned by the API |
+
+### Example
+
+```python
+try:
+    # Some Graphora operation
+    client.register_ontology("invalid yaml")
+except GraphoraAPIError as e:
+    print(f"API error (status {e.status_code}): {str(e)}")
+```
+
+## Error Handling Best Practices
+
+Here are some best practices for handling errors in the Graphora client library:
+
+### Catch Specific Exceptions
+
+Catch specific exceptions rather than catching all exceptions:
+
+```python
+from graphora import GraphoraClient
+from graphora.exceptions import GraphoraAPIError, GraphoraClientError
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+try:
+    ontology_response = client.register_ontology(ontology_yaml)
+except GraphoraAPIError as e:
+    print(f"API Error (Status {e.status_code}): {str(e)}")
+    # Handle API errors (e.g., retry, log, or notify user)
+except GraphoraClientError as e:
+    print(f"Client Error: {str(e)}")
+    # Handle client errors (e.g., check network, validate input)
+```
+
+### Use Status Codes for API Errors
+
+For `GraphoraAPIError`, use the status code to determine the appropriate action:
+
+```python
+try:
+    ontology_response = client.register_ontology(ontology_yaml)
+except GraphoraAPIError as e:
+    if e.status_code == 401:
+        print("Authentication failed. Check your API key.")
+    elif e.status_code == 404:
+        print("Resource not found.")
+    elif e.status_code == 400:
+        print(f"Invalid request: {str(e)}")
+    elif e.status_code >= 500:
+        print(f"Server error: {str(e)}")
+    else:
+        print(f"API error: {str(e)}")
+```
+
+### Implement Retry Logic
+
+For transient errors, implement retry logic with exponential backoff:
+
+```python
+import time
+from graphora.exceptions import GraphoraAPIError
+
+def retry_with_backoff(func, max_retries=3, initial_delay=1, backoff_factor=2):
+    """Retry a function with exponential backoff."""
+    retries = 0
+    delay = initial_delay
+    
+    while retries < max_retries:
+        try:
+            return func()
+        except GraphoraAPIError as e:
+            # Only retry on server errors (5xx)
+            if e.status_code < 500:
+                raise
+                
+            retries += 1
+            if retries >= max_retries:
+                raise
+                
+            print(f"Retrying after error: {str(e)}")
+            time.sleep(delay)
+            delay *= backoff_factor
+            
+# Usage
+def upload_ontology():
+    return client.register_ontology(ontology_yaml)
+    
+ontology_response = retry_with_backoff(upload_ontology)
+```
+
+### Log Errors
+
+Log errors for debugging and monitoring:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    ontology_response = client.register_ontology(ontology_yaml)
+except GraphoraAPIError as e:
+    logger.error(f"API Error (Status {e.status_code}): {str(e)}")
+    raise
+except GraphoraClientError as e:
+    logger.error(f"Client Error: {str(e)}")
+    raise
+```
+
+## Complete Error Handling Example
+
+Here's a complete example of error handling in the Graphora client library:
+
+```python
+import logging
+import time
+from graphora import GraphoraClient
+from graphora.exceptions import GraphoraAPIError, GraphoraClientError
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize client
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+def retry_operation(func, *args, max_retries=3, **kwargs):
+    """Retry an operation with exponential backoff."""
+    retries = 0
+    delay = 1
+    
+    while True:
+        try:
+            return func(*args, **kwargs)
+        except GraphoraAPIError as e:
+            # Only retry on server errors (5xx) or rate limiting (429)
+            if e.status_code != 429 and e.status_code < 500:
+                logger.error(f"Non-retryable API error: {str(e)}")
+                raise
+                
+            retries += 1
+            if retries > max_retries:
+                logger.error(f"Max retries exceeded: {str(e)}")
+                raise
+                
+            wait_time = delay * (2 ** (retries - 1))
+            logger.info(f"Retrying after error: {str(e)} (retry {retries}/{max_retries}, waiting {wait_time}s)")
+            time.sleep(wait_time)
+        except GraphoraClientError as e:
+            # Don't retry client errors
+            logger.error(f"Client error: {str(e)}")
+            raise
+        except Exception as e:
+            # Log unexpected errors
+            logger.exception(f"Unexpected error: {str(e)}")
+            raise
+
+# Example usage
+try:
+    # Load ontology
+    with open("ontology.yaml", "r") as f:
+        ontology_yaml = f.read()
+    
+    # Register ontology with retry
+    ontology_response = retry_operation(
+        client.register_ontology,
+        ontology_yaml,
+        max_retries=3
+    )
+    
+    logger.info(f"Ontology registered with ID: {ontology_response.id}")
+    
+    # Transform documents
+    transform_response = retry_operation(
+        client.transform,
+        ontology_id=ontology_response.id,
+        files=["document.pdf"],
+        max_retries=3
+    )
+    
+    logger.info(f"Transformation started with ID: {transform_response.id}")
+    
+except GraphoraAPIError as e:
+    logger.error(f"API Error (Status {e.status_code}): {str(e)}")
+    # Handle API errors (e.g., display user-friendly message)
+except GraphoraClientError as e:
+    logger.error(f"Client Error: {str(e)}")
+    # Handle client errors (e.g., check network, validate input)
+except Exception as e:
+    logger.exception(f"Unexpected error: {str(e)}")
+    # Handle unexpected errors
+```
+
+## Next Steps
+
+- Check out the [Client](/client/api/client) reference
+- Learn about [Models](/client/api/models)
+- Explore the [Utilities](/client/api/utils) module

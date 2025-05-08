@@ -1,0 +1,266 @@
+---
+title: 'Graph Data Model'
+description: 'Understanding the graph data model in Graphora'
+---
+
+# Graph Data Model
+
+The graph data model is the foundation of Graphora's knowledge representation. It allows you to model complex relationships between entities in a natural and intuitive way. This page explains the key components of the graph data model and how to work with them in the Graphora client library.
+
+## Core Components
+
+The Graphora graph data model consists of two primary components:
+
+<CardGroup cols={2}>
+  <Card title="Nodes" icon="circle-dot">
+    Represent entities in your domain, such as people, companies, or documents
+  </Card>
+  <Card title="Edges" icon="arrow-right">
+    Represent relationships between entities, such as employment or ownership
+  </Card>
+</CardGroup>
+
+### Nodes
+
+Nodes (also called vertices) represent entities in your domain. Each node has:
+
+- A unique ID
+- One or more labels (entity types)
+- A set of properties (key-value pairs)
+
+In the Graphora client library, nodes are represented by the `Node` class:
+
+```python
+from graphora.models import Node
+
+node = Node(
+    id="person-123",
+    labels=["Person", "Employee"],
+    properties={
+        "name": "Jane Doe",
+        "email": "jane.doe@example.com",
+        "age": 32
+    }
+)
+```
+
+### Edges
+
+Edges (also called relationships) represent connections between nodes. Each edge has:
+
+- A unique ID
+- A type (relationship type)
+- Source and target node IDs
+- Optional properties (key-value pairs)
+
+In the Graphora client library, edges are represented by the `Edge` class:
+
+```python
+from graphora.models import Edge
+
+edge = Edge(
+    id="works-at-456",
+    type="WORKS_AT",
+    source="person-123",
+    target="company-789",
+    properties={
+        "role": "Software Engineer",
+        "start_date": "2020-01-15"
+    }
+)
+```
+
+## Working with Graph Data
+
+The Graphora client library provides methods for retrieving and manipulating graph data:
+
+### Retrieving Graph Data
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Get graph data for a transformation
+graph = client.get_transformed_graph(transform_id="your-transform-id")
+
+# Print summary
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
+# Access nodes and edges
+for node in graph.nodes:
+    print(f"Node {node.id}: {node.labels}")
+    print(f"  Properties: {node.properties}")
+
+for edge in graph.edges:
+    print(f"Edge {edge.id}: {edge.type}")
+    print(f"  From: {edge.source} To: {edge.target}")
+    print(f"  Properties: {edge.properties}")
+```
+
+### Modifying Graph Data
+
+You can make changes to the graph by creating, updating, or deleting nodes and edges:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import SaveGraphRequest, NodeChange, EdgeChange
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Prepare changes
+node_changes = [
+    # Add a new node
+    NodeChange(
+        id=None,  # None for new nodes
+        labels=["Person"],
+        properties={
+            "name": "John Smith",
+            "email": "john.smith@example.com"
+        },
+        is_deleted=False
+    ),
+    # Update an existing node
+    NodeChange(
+        id="person-123",
+        labels=["Person", "Manager"],  # Updated labels
+        properties={
+            "name": "Jane Doe",
+            "email": "jane.doe@example.com",
+            "title": "Senior Engineer"  # Added property
+        },
+        is_deleted=False
+    ),
+    # Delete a node
+    NodeChange(
+        id="person-456",
+        labels=["Person"],
+        properties={},
+        is_deleted=True
+    )
+]
+
+edge_changes = [
+    # Add a new edge
+    EdgeChange(
+        id=None,  # None for new edges
+        type="REPORTS_TO",
+        source="person-789",
+        target="person-123",
+        properties={
+            "since": "2022-03-01"
+        },
+        is_deleted=False
+    ),
+    # Delete an edge
+    EdgeChange(
+        id="works-at-456",
+        type="WORKS_AT",
+        source="person-123",
+        target="company-789",
+        properties={},
+        is_deleted=True
+    )
+]
+
+# Create the save request
+save_request = SaveGraphRequest(
+    nodes=node_changes,
+    edges=edge_changes
+)
+
+# Save the changes
+response = client.update_transform_graph(
+    transform_id="your-transform-id",
+    changes=save_request
+)
+
+# Get the updated graph
+updated_graph = response.data
+print(f"Updated graph has {len(updated_graph.nodes)} nodes and {len(updated_graph.edges)} edges")
+```
+
+## Graph Traversal and Analysis
+
+While the Graphora client library doesn't provide direct graph traversal capabilities, you can implement them using the retrieved graph data:
+
+```python
+# Simple graph traversal example
+def find_connected_nodes(graph, start_node_id, relationship_type=None):
+    """Find nodes connected to the start node."""
+    connected_nodes = []
+    
+    for edge in graph.edges:
+        if edge.source == start_node_id:
+            if relationship_type is None or edge.type == relationship_type:
+                # Find the target node
+                target_node = next((node for node in graph.nodes if node.id == edge.target), None)
+                if target_node:
+                    connected_nodes.append((edge, target_node))
+    
+    return connected_nodes
+
+# Usage
+graph = client.get_transformed_graph(transform_id="your-transform-id")
+connections = find_connected_nodes(graph, "person-123", "WORKS_AT")
+
+for edge, node in connections:
+    print(f"{edge.type} -> {node.properties.get('name', node.id)}")
+```
+
+## Graph Visualization
+
+While the Graphora client library doesn't include visualization capabilities, you can export the graph data to popular graph visualization libraries:
+
+```python
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def visualize_graph(graph):
+    """Visualize a Graphora graph using NetworkX."""
+    G = nx.DiGraph()
+    
+    # Add nodes
+    for node in graph.nodes:
+        G.add_node(node.id, labels=node.labels, **node.properties)
+    
+    # Add edges
+    for edge in graph.edges:
+        G.add_edge(edge.source, edge.target, type=edge.type, **edge.properties)
+    
+    # Draw the graph
+    plt.figure(figsize=(12, 8))
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_color="lightblue", 
+            node_size=1500, arrowsize=20, font_size=10)
+    
+    # Add edge labels
+    edge_labels = {(e.source, e.target): e.type for e in graph.edges}
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    
+    plt.title("Graphora Knowledge Graph")
+    plt.axis("off")
+    plt.show()
+
+# Usage
+graph = client.get_transformed_graph(transform_id="your-transform-id")
+visualize_graph(graph)
+```
+
+## Best Practices for Working with Graph Data
+
+To effectively work with graph data in Graphora:
+
+1. **Use meaningful node IDs**: Choose IDs that reflect the entity's identity
+2. **Keep node labels consistent**: Align labels with your ontology entity types
+3. **Structure properties carefully**: Use consistent property names and types
+4. **Batch graph modifications**: Group related changes in a single update
+5. **Handle large graphs efficiently**: Use pagination for large graphs
+6. **Consider graph partitioning**: Organize data into logical subgraphs
+
+## Next Steps
+
+- Learn about [Ontologies](/client/concepts/ontology) in more detail
+- Understand the [Transformation](/client/concepts/transformation) process
+- Explore the [Merging](/client/concepts/merging) capabilities
+- Check out the [API Reference](/client/api/client) for detailed information

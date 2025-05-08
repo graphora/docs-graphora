@@ -1,33 +1,82 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: 'Graphora API Reference'
+description: 'Reference documentation for the Graphora API'
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+# Graphora API Reference
 
-## Welcome
+The Graphora API provides programmatic access to the Graphora platform, allowing you to manage ontologies, transform documents, and work with knowledge graphs. This reference documents the endpoints available in the Graphora API.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+## Base URL
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+All API requests should be made to the following base URL:
+
+```
+https://api.graphora.io/api/v1
+```
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+The Graphora API uses API keys for authentication. You can obtain an API key from the [Graphora Dashboard](https://app.graphora.io/settings/api-keys).
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+To authenticate your requests, include your API key in the `Authorization` header:
+
 ```
+Authorization: Bearer YOUR_API_KEY
+```
+
+<Note>
+  Keep your API keys secure and do not share them in publicly accessible areas such as GitHub, client-side code, etc.
+</Note>
+
+## API Endpoints
+
+The Graphora API is organized around the following main resources:
+
+<CardGroup cols={2}>
+  <Card
+    title="Ontology"
+    icon="sitemap"
+  >
+    Create, retrieve, and manage ontologies
+  </Card>
+  <Card
+    title="Transform"
+    icon="file-lines"
+  >
+    Upload and process documents
+  </Card>
+  <Card
+    title="Merge"
+    icon="code-merge"
+  >
+    Merge extracted data into knowledge graphs
+  </Card>
+  <Card
+    title="Graph"
+    icon="diagram-project"
+  >
+    Query and manipulate graph data
+  </Card>
+</CardGroup>
+
+## Client Libraries
+
+While you can use the API directly with HTTP requests, we recommend using our client libraries for a more convenient experience:
+
+<Card
+  title="Python Client Library"
+  icon="python"
+  href="/client/introduction"
+>
+  Use the Graphora client library in your Python applications
+</Card>
+
+## Rate Limits
+
+The Graphora API has rate limits to ensure fair usage and system stability. The current limits are:
+
+- 100 requests per minute per API key
+- 5,000 requests per day per API key
+
+If you exceed these limits, you'll receive a `429 Too Many Requests` response.

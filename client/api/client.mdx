@@ -1,0 +1,558 @@
+---
+title: 'GraphoraClient'
+description: 'API reference for the GraphoraClient class'
+---
+
+# GraphoraClient
+
+The `GraphoraClient` class is the main entry point for interacting with the Graphora API. It provides methods for all major API endpoints, including ontology management, document transformation, graph merging, and graph manipulation.
+
+## Initialization
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    api_key="your-api-key",  # Optional if GRAPHORA_API_KEY env var is set
+    timeout=60  # Request timeout in seconds
+)
+```
+
+### Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `base_url` | `str` | Base URL of the Graphora API | Required |
+| `api_key` | `str` | API key for authentication | `None` |
+| `timeout` | `int` | Request timeout in seconds | `60` |
+
+## Ontology Methods
+
+### register_ontology
+
+Register, validate and upload an ontology definition.
+
+```python
+def register_ontology(self, ontology_yaml: str) -> OntologyResponse:
+    """
+    Register, validate and upload an ontology definition.
+    
+    Args:
+        ontology_yaml: Ontology definition in YAML format
+        
+    Returns:
+        OntologyResponse with the ID of the validated ontology
+    """
+```
+
+#### Example
+
+```python
+# Example ontology in the new format
+ontology_yaml = """
+version: 0.1.0
+entities:
+  Company:
+    properties:
+      name:
+        type: str
+        description: Name of the Company
+        unique: true
+        required: true
+      cik:
+        type: str
+        description: Cusip Identifier for Company
+        unique: true
+    relationships:
+      HAS_BUSINESS:
+        target: Business
+"""
+    
+ontology_response = client.register_ontology(ontology_yaml)
+ontology_id = ontology_response.id
+```
+
+### get_ontology
+
+Retrieve an ontology by ID.
+
+```python
+def get_ontology(self, ontology_id: str) -> str:
+    """
+    Retrieve an ontology by ID.
+    
+    Args:
+        ontology_id: ID of the ontology to retrieve
+        
+    Returns:
+        Ontology YAML text
+    """
+```
+
+#### Example
+
+```python
+ontology_yaml = client.get_ontology("your-ontology-id")
+
+with open("retrieved_ontology.yaml", "w") as f:
+    f.write(ontology_yaml)
+```
+
+## Transformation Methods
+
+### transform
+
+Upload documents for processing.
+
+```python
+def transform(
+    self,
+    ontology_id: str,
+    files: List[Union[str, Path, BinaryIO]],
+    metadata: Optional[List[DocumentMetadata]] = None
+) -> TransformResponse:
+    """
+    Upload documents for processing.
+    
+    Args:
+        ontology_id: ID of the ontology to use for transformation
+        files: List of files to process (paths or file-like objects)
+        metadata: Optional metadata for each document
+        
+    Returns:
+        TransformResponse with the ID for tracking progress
+    """
+```
+
+#### Example
+
+```python
+from graphora.models import DocumentMetadata, DocumentType
+
+# Create metadata (optional)
+metadata = [
+    DocumentMetadata(
+        source="document1.pdf",
+        document_type=DocumentType.PDF,
+        tags=["example"],
+        custom_metadata={"priority": "high"}
+    )
+]
+
+# Transform documents
+transform_response = client.transform(
+    ontology_id="your-ontology-id",
+    files=["document1.pdf", "document2.txt"],
+    metadata=metadata
+)
+
+transform_id = transform_response.id
+```
+
+### get_transform_status
+
+Get the status of a transformation.
+
+```python
+def get_transform_status(
+    self,
+    transform_id: str,
+    include_metrics: bool = True
+) -> TransformStatus:
+    """
+    Get the status of a transformation.
+    
+    Args:
+        transform_id: ID of the transformation to check
+        include_metrics: Whether to include resource metrics
+        
+    Returns:
+        TransformStatus with current progress
+    """
+```
+
+#### Example
+
+```python
+status = client.get_transform_status("your-transform-id")
+print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+```
+
+### wait_for_transform
+
+Wait for a transformation to complete.
+
+```python
+def wait_for_transform(
+    self,
+    transform_id: str,
+    timeout: int = 300,
+    poll_interval: int = 5
+) -> TransformStatus:
+    """
+    Wait for a transformation to complete.
+    
+    Args:
+        transform_id: ID of the transformation to wait for
+        timeout: Maximum time to wait in seconds
+        poll_interval: Time between status checks in seconds
+        
+    Returns:
+        Final TransformStatus
+        
+    Raises:
+        GraphoraClientError: If the transformation fails or times out
+    """
+```
+
+#### Example
+
+```python
+try:
+    final_status = client.wait_for_transform(
+        transform_id="your-transform-id",
+        timeout=600,  # 10 minutes
+        poll_interval=10
+    )
+    print(f"Final status: {final_status.status}")
+except GraphoraClientError as e:
+    print(f"Error: {str(e)}")
+```
+
+### cleanup_transform
+
+Clean up transformation data.
+
+```python
+def cleanup_transform(self, transform_id: str) -> bool:
+    """
+    Clean up transformation data.
+    
+    Args:
+        transform_id: ID of the transformation to clean up
+        
+    Returns:
+        True if cleanup was successful
+    """
+```
+
+#### Example
+
+```python
+success = client.cleanup_transform("your-transform-id")
+if success:
+    print("Cleanup successful")
+else:
+    print("Cleanup failed")
+```
+
+### get_transformed_graph
+
+Retrieve graph data by transform ID.
+
+```python
+def get_transformed_graph(
+    self,
+    transform_id: str,
+    limit: int = 1000,
+    skip: int = 0
+) -> GraphResponse:
+    """
+    Retrieve graph data by transform ID.
+    
+    Args:
+        transform_id: ID of the transformation
+        limit: Maximum number of nodes to return
+        skip: Number of nodes to skip for pagination
+        
+    Returns:
+        GraphResponse with nodes and edges
+    """
+```
+
+#### Example
+
+```python
+graph = client.get_transformed_graph(
+    transform_id="your-transform-id",
+    limit=500,
+    skip=0
+)
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+### update_transform_graph
+
+Save bulk modifications to the graph.
+
+```python
+def update_transform_graph(
+    self,
+    transform_id: str,
+    changes: SaveGraphRequest
+) -> SaveGraphResponse:
+    """
+    Save bulk modifications to the graph.
+    
+    Args:
+        transform_id: ID of the transformation
+        changes: Batch of modifications to apply
+        
+    Returns:
+        SaveGraphResponse with updated graph data
+    """
+```
+
+#### Example
+
+```python
+from graphora.models import SaveGraphRequest, NodeChange, EdgeChange
+
+# Prepare changes
+node_changes = [
+    NodeChange(
+        id=None,  # None for new nodes
+        labels=["Person"],
+        properties={"name": "John Smith"},
+        is_deleted=False
+    )
+]
+
+edge_changes = []
+
+# Create the save request
+save_request = SaveGraphRequest(
+    nodes=node_changes,
+    edges=edge_changes
+)
+
+# Save the changes
+response = client.update_transform_graph(
+    transform_id="your-transform-id",
+    changes=save_request
+)
+
+# Get the updated graph
+updated_graph = response.data
+```
+
+## Merge Methods
+
+### start_merge
+
+Start a new merge process.
+
+```python
+def start_merge(
+    self,
+    session_id: str,
+    transform_id: str,
+    merge_id: Optional[str] = None
+) -> MergeResponse:
+    """
+    Start a new merge process.
+    
+    Args:
+        session_id: Session ID (ontology ID)
+        transform_id: ID of the transformation to merge
+        merge_id: Optional custom merge ID
+        
+    Returns:
+        MergeResponse with the ID for tracking progress
+    """
+```
+
+#### Example
+
+```python
+merge_response = client.start_merge(
+    session_id="your-ontology-id",
+    transform_id="your-transform-id"
+)
+
+merge_id = merge_response.merge_id
+```
+
+### get_merge_status
+
+Get the status of a merge process.
+
+```python
+def get_merge_status(self, merge_id: str) -> MergeStatus:
+    """
+    Get the status of a merge process.
+    
+    Args:
+        merge_id: ID of the merge to check
+        
+    Returns:
+        MergeStatus with current progress
+    """
+```
+
+#### Example
+
+```python
+status = client.get_merge_status("your-merge-id")
+print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+print(f"Conflicts: {status.conflicts_count}, Resolved: {status.resolved_count}")
+```
+
+### get_conflicts
+
+Get conflicts for a merge process.
+
+```python
+def get_conflicts(self, merge_id: str) -> List[ConflictResolution]:
+    """
+    Get conflicts for a merge process.
+    
+    Args:
+        merge_id: ID of the merge process
+        
+    Returns:
+        List of conflicts requiring resolution
+    """
+```
+
+#### Example
+
+```python
+conflicts = client.get_conflicts("your-merge-id")
+for conflict in conflicts:
+    print(f"Conflict ID: {conflict.id}")
+    print(f"Entity ID: {conflict.entity_id}")
+    print(f"Entity Type: {conflict.entity_type}")
+    print(f"Conflict Type: {conflict.conflict_type}")
+```
+
+### resolve_conflict
+
+Apply a resolution to a specific conflict.
+
+```python
+def resolve_conflict(
+    self,
+    merge_id: str,
+    conflict_id: str,
+    changed_props: Dict[str, Any],
+    resolution: ResolutionStrategy,
+    learning_comment: str = ""
+) -> bool:
+    """
+    Apply a resolution to a specific conflict.
+    
+    Args:
+        merge_id: ID of the merge process
+        conflict_id: ID of the conflict to resolve
+        changed_props: Properties that were changed
+        resolution: The resolution decision
+        learning_comment: Comment on the resolution
+        
+    Returns:
+        True if the resolution was applied successfully
+    """
+```
+
+#### Example
+
+```python
+from graphora.models import ResolutionStrategy
+
+success = client.resolve_conflict(
+    merge_id="your-merge-id",
+    conflict_id="conflict-123",
+    changed_props={"name": "John Smith"},
+    resolution=ResolutionStrategy.ACCEPT,
+    learning_comment="Accepting this entity"
+)
+
+if success:
+    print("Conflict resolved successfully")
+else:
+    print("Failed to resolve conflict")
+```
+
+### get_merge_statistics
+
+Get detailed statistics of a merge operation.
+
+```python
+def get_merge_statistics(self, merge_id: str) -> Dict[str, Any]:
+    """
+    Get detailed statistics of a merge operation.
+    
+    Args:
+        merge_id: ID of the merge process
+        
+    Returns:
+        Dictionary of merge statistics
+    """
+```
+
+#### Example
+
+```python
+statistics = client.get_merge_statistics("your-merge-id")
+print("Merge Statistics:")
+for key, value in statistics.items():
+    print(f"  {key}: {value}")
+```
+
+### get_merged_graph
+
+Retrieve graph data for a merge process.
+
+```python
+def get_merged_graph(self, merge_id: str, transform_id: str) -> GraphResponse:
+    """
+    Retrieve graph data for a merge process.
+    
+    Args:
+        merge_id: ID of the merge process
+        transform_id: ID of the transformation
+        
+    Returns:
+        GraphResponse with nodes and edges
+    """
+```
+
+#### Example
+
+```python
+graph = client.get_merged_graph(
+    merge_id="your-merge-id",
+    transform_id="your-transform-id"
+)
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+## Error Handling
+
+The `GraphoraClient` methods can raise the following exceptions:
+
+- `GraphoraAPIError`: Raised when the API returns an error
+- `GraphoraClientError`: Raised for client-side errors
+
+```python
+from graphora import GraphoraClient
+from graphora.exceptions import GraphoraAPIError, GraphoraClientError
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+try:
+    ontology_response = client.register_ontology("invalid yaml")
+except GraphoraAPIError as e:
+    print(f"API Error (Status {e.status_code}): {str(e)}")
+except GraphoraClientError as e:
+    print(f"Client Error: {str(e)}")
+except Exception as e:
+    print(f"Unexpected error: {str(e)}")
+```
+
+## Next Steps
+
+- Check out the [Models](/client/api/models) reference
+- Learn about [Exceptions](/client/api/exceptions)
+- Explore the [Utilities](/client/api/utils) module

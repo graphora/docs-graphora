@@ -1,0 +1,223 @@
+---
+title: 'Merging'
+description: 'Understanding the graph merging process in Graphora'
+---
+
+# Graph Merging
+
+Graph merging is the process of integrating newly extracted graph data with existing data in your knowledge graph. This is a critical capability of Graphora that allows you to build and maintain a comprehensive knowledge graph over time.
+
+## The Merging Process
+
+When you merge transformed data into your knowledge graph, the following steps occur:
+
+<Steps>
+  <Step title="Entity Matching">
+    Entities in the new data are matched against existing entities in the knowledge graph.
+  </Step>
+  <Step title="Conflict Detection">
+    Conflicts between new and existing data are identified (e.g., different values for the same property).
+  </Step>
+  <Step title="Automatic Resolution">
+    Some conflicts are automatically resolved based on predefined rules and confidence scores.
+  </Step>
+  <Step title="Human Review">
+    Conflicts that cannot be automatically resolved are flagged for human review.
+  </Step>
+  <Step title="Graph Integration">
+    Resolved entities and relationships are integrated into the knowledge graph.
+  </Step>
+  <Step title="Index Update">
+    Search indexes are updated to include the new data.
+  </Step>
+</Steps>
+
+## Merging in the Client Library
+
+The Graphora client library provides methods for merging transformed data and handling conflicts:
+
+### Starting a Merge
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Start a merge process
+merge_response = client.start_merge(
+    session_id="your-ontology-id",  # Session ID is the ontology ID
+    transform_id="your-transform-id"
+)
+
+merge_id = merge_response.merge_id
+```
+
+### Checking Merge Status
+
+```python
+# Get the current status
+status = client.get_merge_status(merge_id)
+print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+print(f"Conflicts: {status.conflicts_count}, Resolved: {status.resolved_count}")
+```
+
+### Handling Conflicts
+
+```python
+# Get conflicts that need resolution
+conflicts = client.get_conflicts(merge_id)
+
+for conflict in conflicts:
+    print(f"Conflict ID: {conflict.id}")
+    print(f"Entity ID: {conflict.entity_id}")
+    print(f"Entity Type: {conflict.entity_type}")
+    print(f"Conflict Type: {conflict.conflict_type}")
+    
+    # Resolve the conflict
+    client.resolve_conflict(
+        merge_id=merge_id,
+        conflict_id=conflict.id,
+        changed_props={},  # No property changes in this example
+        resolution="accept",  # Or "reject", "modify", "merge"
+        learning_comment="Accepting this entity"
+    )
+```
+
+### Retrieving the Merged Graph
+
+```python
+# Get the merged graph
+graph = client.get_merged_graph(merge_id=merge_id, transform_id="your-transform-id")
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+## Conflict Resolution Strategies
+
+When resolving conflicts, you can use one of the following strategies:
+
+| Strategy | Description |
+|----------|-------------|
+| `ACCEPT` | Accept the new data, replacing the existing data |
+| `REJECT` | Reject the new data, keeping the existing data |
+| `MODIFY` | Modify the data before accepting it |
+| `MERGE` | Merge the new and existing data |
+
+## Merge Statistics
+
+You can get detailed statistics about a merge operation:
+
+```python
+# Get merge statistics
+statistics = client.get_merge_statistics(merge_id)
+print("Merge Statistics:")
+for key, value in statistics.items():
+    print(f"  {key}: {value}")
+```
+
+The statistics include information such as:
+- Number of entities processed
+- Number of relationships processed
+- Number of conflicts detected
+- Number of conflicts resolved automatically
+- Number of conflicts resolved manually
+- Time taken for each stage of the merge process
+
+## Best Practices for Graph Merging
+
+To get the best results from graph merging:
+
+1. **Define clear entity matching rules**: Ensure entities are correctly matched across datasets
+2. **Handle conflicts appropriately**: Choose the right resolution strategy for each conflict
+3. **Provide meaningful learning comments**: Help improve automatic resolution over time
+4. **Monitor merge progress**: Large merges may take time to complete
+5. **Review merge statistics**: Understand how your data is being integrated
+
+## Example: Complete Merge Workflow
+
+Here's a complete example of merging transformed data and handling conflicts:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import ResolutionStrategy
+import time
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Start the merge process
+merge_response = client.start_merge(
+    session_id="your-ontology-id",
+    transform_id="your-transform-id"
+)
+merge_id = merge_response.merge_id
+print(f"Merge process started with merge ID: {merge_id}")
+
+# Monitor the merge process
+max_checks = 10
+for i in range(max_checks):
+    status = client.get_merge_status(merge_id)
+    print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+    print(f"Conflicts: {status.conflicts_count}, Resolved: {status.resolved_count}")
+    
+    if status.status in ["COMPLETED", "FAILED"]:
+        break
+        
+    if i < max_checks - 1:
+        print("Waiting 5 seconds before checking again...")
+        time.sleep(5)
+
+# Check for conflicts
+conflicts = client.get_conflicts(merge_id)
+
+if conflicts:
+    print(f"Found {len(conflicts)} conflicts that need resolution")
+    
+    # Resolve each conflict
+    for i, conflict in enumerate(conflicts):
+        print(f"\nResolving conflict {i+1}/{len(conflicts)}")
+        print(f"Conflict ID: {conflict.id}")
+        print(f"Entity ID: {conflict.entity_id}")
+        print(f"Entity Type: {conflict.entity_type}")
+        print(f"Conflict Type: {conflict.conflict_type}")
+        
+        if conflict.suggested_resolution:
+            print(f"Suggested Resolution: {conflict.suggested_resolution}")
+            print(f"Confidence: {conflict.confidence:.2%}")
+        
+        # In a real application, you might want to ask the user for input
+        # Here we'll just accept the suggested resolution or use ACCEPT as default
+        resolution = conflict.suggested_resolution or ResolutionStrategy.ACCEPT
+        
+        print(f"Applying resolution: {resolution}")
+        result = client.resolve_conflict(
+            merge_id=merge_id,
+            conflict_id=conflict.id,
+            changed_props={},  # No property changes in this example
+            resolution=resolution,
+            learning_comment=f"Auto-resolved with {resolution}"
+        )
+        
+        if result:
+            print("Conflict resolved successfully")
+        else:
+            print("Failed to resolve conflict")
+else:
+    print("No conflicts found")
+
+# Get merge statistics
+print("\nGetting merge statistics...")
+statistics = client.get_merge_statistics(merge_id)
+print("Merge Statistics:")
+for key, value in statistics.items():
+    print(f"  {key}: {value}")
+
+# Get the merged graph
+print("\nRetrieving the merged graph...")
+graph = client.get_merged_graph(merge_id=merge_id, transform_id="your-transform-id")
+print(f"Graph retrieved with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+## Next Steps
+
+- Explore the [Graph](/client/concepts/graph) data model
+- Learn about [Ontologies](/client/concepts/ontology) in more detail
+- Check out the [API Reference](/client/api/client) for detailed information

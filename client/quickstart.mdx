@@ -1,0 +1,249 @@
+---
+title: 'Quickstart Guide'
+description: 'Get started with the Graphora client library'
+---
+
+# Quickstart Guide
+
+This guide will help you get started with the Graphora client library, showing you how to perform common operations with code examples.
+
+## Installation
+
+First, install the library using pip:
+
+```bash
+pip install graphora
+```
+
+## Authentication
+
+To use the Graphora API, you'll need an API key. You can provide this key in two ways:
+
+<CodeGroup>
+```python Direct initialization
+from graphora import GraphoraClient
+
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    api_key="your-api-key"
+)
+```
+
+```python Environment variable
+# Set the environment variable
+# export GRAPHORA_API_KEY="your-api-key"
+
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+```
+</CodeGroup>
+
+## Basic Workflow
+
+The typical workflow for using Graphora involves:
+
+1. Defining an ontology
+2. Uploading documents for processing
+3. Monitoring the transformation process
+4. Merging the extracted data
+5. Querying the resulting graph
+
+Let's walk through each step with code examples.
+
+### 1. Define and Upload an Ontology
+
+An ontology defines the structure of your knowledge graph, including entity types and their relationships.
+
+```python
+from graphora import GraphoraClient
+
+# Initialize client
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Load ontology from a file
+with open("ontology.yaml", "r") as f:
+    ontology_yaml = f.read()
+
+# Register and validate the ontology
+ontology_response = client.register_ontology(ontology_yaml)
+ontology_id = ontology_response.id
+print(f"Ontology ID: {ontology_id}")
+```
+
+### 2. Upload Documents for Processing
+
+Once you have an ontology, you can upload documents to be processed according to that ontology.
+
+```python
+# Upload documents
+transform_response = client.transform(
+    ontology_id=ontology_id,
+    files=["document1.pdf", "document2.txt"]
+)
+
+transform_id = transform_response.id
+print(f"Transform ID: {transform_id}")
+```
+
+### 3. Monitor the Transformation Process
+
+Transforming documents is an asynchronous process. You can check the status or wait for completion.
+
+<CodeGroup>
+```python Check status
+# Check status
+status = client.get_transform_status(transform_id)
+print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+```
+
+```python Wait for completion
+# Wait for completion
+final_status = client.wait_for_transform(transform_id)
+print(f"Final status: {final_status.status}")
+```
+</CodeGroup>
+
+### 4. Get the Transformed Graph
+
+After transformation, you can retrieve the resulting graph.
+
+```python
+# Get the graph
+graph = client.get_transformed_graph(transform_id=transform_id)
+
+# Print summary
+print(f"Nodes: {len(graph.nodes)}")
+print(f"Edges: {len(graph.edges)}")
+
+# Print node details
+for node in graph.nodes[:5]:  # First 5 nodes
+    print(f"Node {node.id}: {node.labels} - {node.properties}")
+```
+
+### 5. Merge the Extracted Data
+
+You can merge the extracted data into your knowledge graph.
+
+```python
+# Start merge process
+merge_response = client.start_merge(
+    session_id=ontology_id,
+    transform_id=transform_id
+)
+
+merge_id = merge_response.merge_id
+print(f"Merge ID: {merge_id}")
+```
+
+### 6. Check for Conflicts
+
+During the merge process, there might be conflicts that need resolution.
+
+```python
+# Check for conflicts
+conflicts = client.get_conflicts(merge_id)
+if conflicts:
+    print(f"Found {len(conflicts)} conflicts")
+    
+    # Resolve a conflict
+    for conflict in conflicts:
+        client.resolve_conflict(
+            merge_id=merge_id,
+            conflict_id=conflict.id,
+            changed_props={},
+            resolution="accept",
+            learning_comment="Accepting this entity"
+        )
+```
+
+### 7. Get the Merged Graph
+
+Finally, you can retrieve the merged graph.
+
+```python
+# Get the merged graph
+merged_graph = client.get_merged_graph(merge_id=merge_id, transform_id=transform_id)
+print(f"Merged graph has {len(merged_graph.nodes)} nodes and {len(merged_graph.edges)} edges")
+```
+
+## Complete Example
+
+Here's a complete example that ties all these steps together:
+
+```python
+from graphora import GraphoraClient
+import time
+
+# Initialize client
+client = GraphoraClient(base_url="https://api.graphora.io")
+
+# Load and upload ontology
+with open("ontology.yaml", "r") as f:
+    ontology_yaml = f.read()
+    
+ontology_response = client.register_ontology(ontology_yaml)
+ontology_id = ontology_response.id
+print(f"Ontology ID: {ontology_id}")
+
+# Upload documents
+transform_response = client.transform(
+    ontology_id=ontology_id,
+    files=["document1.pdf", "document2.txt"]
+)
+transform_id = transform_response.id
+print(f"Transform ID: {transform_id}")
+
+# Wait for transformation to complete
+final_status = client.wait_for_transform(transform_id)
+print(f"Transformation completed with status: {final_status.status}")
+
+# Get the transformed graph
+graph = client.get_transformed_graph(transform_id=transform_id)
+print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
+# Start merge process
+merge_response = client.start_merge(
+    session_id=ontology_id,
+    transform_id=transform_id
+)
+merge_id = merge_response.merge_id
+print(f"Merge ID: {merge_id}")
+
+# Wait for merge to complete (simple polling)
+for _ in range(30):  # Try for 5 minutes
+    status = client.get_merge_status(merge_id)
+    if status.status in ["COMPLETED", "FAILED"]:
+        break
+    print(f"Merge status: {status.status}, Progress: {status.progress:.2%}")
+    time.sleep(10)
+
+# Get conflicts if any
+conflicts = client.get_conflicts(merge_id)
+if conflicts:
+    print(f"Found {len(conflicts)} conflicts")
+    
+    # Resolve conflicts
+    for conflict in conflicts:
+        client.resolve_conflict(
+            merge_id=merge_id,
+            conflict_id=conflict.id,
+            changed_props={},
+            resolution="accept",
+            learning_comment="Accepting this entity"
+        )
+
+# Get the final merged graph
+merged_graph = client.get_merged_graph(merge_id=merge_id, transform_id=transform_id)
+print(f"Final merged graph has {len(merged_graph.nodes)} nodes and {len(merged_graph.edges)} edges")
+```
+
+## Next Steps
+
+Now that you're familiar with the basic workflow, you can:
+
+- Learn about [Ontologies](/client/concepts/ontology) in more detail
+- Understand the [Transformation](/client/concepts/transformation) process
+- Explore the [Merging](/client/concepts/merging) capabilities
+- Check out the [Graph](/client/concepts/graph) data model
+- Browse the [API Reference](/client/api/client) for detailed information about all available methods

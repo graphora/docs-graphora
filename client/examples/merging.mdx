@@ -1,0 +1,220 @@
+---
+title: 'Merging Examples'
+description: 'Examples of merging extracted data into knowledge graphs with Graphora'
+---
+
+# Merging Examples
+
+This page provides practical examples of merging extracted data into knowledge graphs using the Graphora client library.
+
+## Basic Merging Operation
+
+After transforming documents, you can merge the extracted data into a knowledge graph:
+
+```python
+from graphora import GraphoraClient
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Use a previously completed transformation
+transform_id = "transform_123456789"
+
+# Start the merging process
+merge_response = client.merge(transform_id)
+print(f"Merge started with ID: {merge_response.merge_id}")
+
+# Check the status of the merge
+status = client.get_merge_status(merge_response.merge_id)
+print(f"Merge status: {status.status}")
+print(f"Progress: {status.progress}%")
+```
+
+## Monitoring Merge Progress
+
+For large datasets, merging can take some time. Here's how to monitor the progress:
+
+```python
+from graphora import GraphoraClient
+import time
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Start a merge (assuming you have already completed a transformation)
+transform_id = "transform_123456789"
+merge_response = client.merge(transform_id)
+merge_id = merge_response.merge_id
+
+# Monitor the merge progress
+completed = False
+while not completed:
+    status = client.get_merge_status(merge_id)
+    print(f"Status: {status.status}, Progress: {status.progress}%")
+    
+    if status.status in ["COMPLETED", "FAILED", "CONFLICTS_DETECTED"]:
+        completed = True
+        if status.status == "COMPLETED":
+            print("Merge completed successfully!")
+        elif status.status == "CONFLICTS_DETECTED":
+            print(f"Merge detected {status.conflict_count} conflicts that need resolution")
+        else:
+            print(f"Merge failed: {status.error}")
+    else:
+        # Wait for 5 seconds before checking again
+        time.sleep(5)
+
+# If merge was successful, you can retrieve the graph data
+if status.status == "COMPLETED":
+    graph = client.get_merged_graph(merge_id, transform_id)
+    print(f"Retrieved graph with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+## Handling Merge Conflicts
+
+When merging data, conflicts may arise. Here's how to handle them:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import ResolutionStrategy
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Get conflicts for a merge that has detected conflicts
+merge_id = "merge_123456789"
+conflicts = client.get_conflicts(merge_id)
+
+print(f"Found {len(conflicts)} conflicts")
+
+# Resolve each conflict
+for conflict in conflicts:
+    print(f"Conflict ID: {conflict.conflict_id}")
+    print(f"Entity Type: {conflict.entity_type}")
+    print(f"Conflicting Properties: {conflict.conflicting_properties}")
+    print(f"Source A: {conflict.source_a}")
+    print(f"Source B: {conflict.source_b}")
+    
+    # Example: Resolve by choosing source A for all conflicts
+    resolution = ResolutionStrategy.CHOOSE_SOURCE_A
+    
+    # You can also modify specific properties
+    changed_props = {
+        "name": conflict.source_a_values["name"],
+        "age": conflict.source_b_values["age"]  # Take age from source B
+    }
+    
+    # Add a learning comment to improve future conflict resolution
+    learning_comment = "Source A has more accurate names, but source B has updated age information"
+    
+    # Resolve the conflict
+    success = client.resolve_conflict(
+        merge_id, 
+        conflict.conflict_id, 
+        changed_props, 
+        resolution, 
+        learning_comment
+    )
+    
+    if success:
+        print(f"Resolved conflict {conflict.conflict_id}")
+    else:
+        print(f"Failed to resolve conflict {conflict.conflict_id}")
+
+# After resolving all conflicts, continue the merge
+continue_response = client.continue_merge(merge_id)
+print(f"Merge continued with status: {continue_response.status}")
+```
+
+## Custom Merge Strategies
+
+You can define custom merge strategies for different entity types:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import MergeStrategy, EntityMergeConfig
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Define merge strategies for different entity types
+merge_config = {
+    "Person": EntityMergeConfig(
+        unique_properties=["email"],  # Properties used to identify the same entity
+        conflict_resolution="MANUAL",  # Require manual resolution for conflicts
+        confidence_threshold=0.85     # Minimum confidence score to consider a match
+    ),
+    "Company": EntityMergeConfig(
+        unique_properties=["name", "registration_number"],
+        conflict_resolution="SOURCE_A_PRIORITY",  # Automatically prefer source A
+        confidence_threshold=0.9
+    ),
+    "Product": EntityMergeConfig(
+        unique_properties=["product_id"],
+        conflict_resolution="MOST_RECENT",  # Prefer the most recent data
+        confidence_threshold=0.8
+    )
+}
+
+# Start a merge with custom strategies
+transform_id = "transform_123456789"
+merge_response = client.merge(transform_id, merge_strategy=MergeStrategy(entity_configs=merge_config))
+print(f"Merge started with ID: {merge_response.merge_id}")
+```
+
+## Retrieving and Using the Merged Graph
+
+Once a merge is complete, you can retrieve and use the graph data:
+
+```python
+from graphora import GraphoraClient
+import networkx as nx
+import matplotlib.pyplot as plt
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Get the merged graph
+merge_id = "merge_123456789"
+transform_id = "transform_123456789"
+graph_response = client.get_merged_graph(merge_id, transform_id)
+
+# Print some statistics
+print(f"Graph contains {len(graph_response.nodes)} nodes and {len(graph_response.edges)} edges")
+
+# Convert to NetworkX graph for analysis and visualization
+G = nx.Graph()
+
+# Add nodes
+for node in graph_response.nodes:
+    G.add_node(node.id, type=node.type, properties=node.properties)
+
+# Add edges
+for edge in graph_response.edges:
+    G.add_edge(edge.source_id, edge.target_id, type=edge.type, properties=edge.properties)
+
+# Analyze the graph
+print(f"Graph density: {nx.density(G)}")
+print(f"Average clustering coefficient: {nx.average_clustering(G)}")
+
+# Find important nodes using centrality measures
+degree_centrality = nx.degree_centrality(G)
+top_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
+print("Top 5 most connected nodes:")
+for node_id, centrality in top_nodes:
+    node_type = G.nodes[node_id]['type']
+    print(f"  Node {node_id} (Type: {node_type}) - Centrality: {centrality:.4f}")
+
+# Visualize the graph (for small graphs)
+if len(G) <= 100:  # Only visualize small graphs
+    plt.figure(figsize=(12, 8))
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=False, node_size=30, alpha=0.6)
+    plt.title("Merged Knowledge Graph")
+    plt.savefig("knowledge_graph.png")
+    print("Graph visualization saved as 'knowledge_graph.png'")
+else:
+    print("Graph too large for visualization")
+```
+
+These examples demonstrate the basic operations for merging extracted data into knowledge graphs with the Graphora client library. For more detailed information about merging concepts and options, see the [Merging Concepts](/client/concepts/merging) page.

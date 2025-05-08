@@ -1,0 +1,195 @@
+---
+title: 'Transformation Examples'
+description: 'Examples of transforming documents with Graphora'
+---
+
+# Transformation Examples
+
+This page provides practical examples of transforming documents using the Graphora client library.
+
+## Basic Document Transformation
+
+The following example demonstrates how to transform a set of documents using a registered ontology:
+
+```python
+from graphora import GraphoraClient
+import os
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Use a previously registered ontology
+ontology_id = "ont_123456789"
+
+# Prepare a list of document files to transform
+document_paths = [
+    "/path/to/document1.pdf",
+    "/path/to/document2.docx",
+    "/path/to/document3.txt"
+]
+
+# Transform the documents
+response = client.transform(ontology_id, document_paths)
+print(f"Transformation started with ID: {response.transform_id}")
+
+# Check the status of the transformation
+status = client.get_transform_status(response.transform_id)
+print(f"Transformation status: {status.status}")
+print(f"Progress: {status.progress}%")
+```
+
+## Transforming Documents with Metadata
+
+You can also provide metadata for each document to enrich the transformation process:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import DocumentMetadata
+import os
+from datetime import datetime
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Use a previously registered ontology
+ontology_id = "ont_123456789"
+
+# Prepare document paths and metadata
+document_paths = [
+    "/path/to/document1.pdf",
+    "/path/to/document2.docx"
+]
+
+metadata = [
+    DocumentMetadata(
+        title="Annual Report 2024",
+        author="Finance Department",
+        date=datetime(2024, 3, 15),
+        tags=["finance", "annual", "report"],
+        custom_attributes={
+            "department": "Finance",
+            "confidentiality": "Internal"
+        }
+    ),
+    DocumentMetadata(
+        title="Product Specifications",
+        author="Engineering Team",
+        date=datetime(2024, 2, 10),
+        tags=["product", "specifications", "technical"],
+        custom_attributes={
+            "department": "Engineering",
+            "product_id": "PRD-2024-001"
+        }
+    )
+]
+
+# Transform the documents with metadata
+response = client.transform(ontology_id, document_paths, metadata=metadata)
+print(f"Transformation started with ID: {response.transform_id}")
+```
+
+## Monitoring Transformation Progress
+
+For long-running transformations, you can monitor the progress:
+
+```python
+from graphora import GraphoraClient
+import time
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Start a transformation (assuming you have already set up the ontology and documents)
+transform_response = client.transform(ontology_id, document_paths)
+transform_id = transform_response.transform_id
+
+# Monitor the transformation progress
+completed = False
+while not completed:
+    status = client.get_transform_status(transform_id)
+    print(f"Status: {status.status}, Progress: {status.progress}%")
+    
+    if status.status in ["COMPLETED", "FAILED"]:
+        completed = True
+        if status.status == "COMPLETED":
+            print("Transformation completed successfully!")
+        else:
+            print(f"Transformation failed: {status.error}")
+    else:
+        # Wait for 5 seconds before checking again
+        time.sleep(5)
+
+# If transformation was successful, you can proceed to merging
+if status.status == "COMPLETED":
+    print("Ready to merge the transformed data into a graph")
+```
+
+## Handling Different Document Types
+
+Graphora supports various document types. Here's how to transform a mix of document types:
+
+```python
+from graphora import GraphoraClient
+import os
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Use a previously registered ontology
+ontology_id = "ont_123456789"
+
+# Prepare a list of different document types
+documents = [
+    "/path/to/text_document.txt",      # Plain text
+    "/path/to/word_document.docx",     # Microsoft Word
+    "/path/to/pdf_document.pdf",       # PDF
+    "/path/to/presentation.pptx",      # PowerPoint
+    "/path/to/spreadsheet.xlsx",       # Excel
+    "/path/to/webpage.html"            # HTML
+]
+
+# Transform the documents
+response = client.transform(ontology_id, documents)
+print(f"Transformation started with ID: {response.transform_id}")
+```
+
+## Transforming Documents from URLs
+
+You can also transform documents directly from URLs:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import DocumentMetadata
+
+# Initialize the client
+client = GraphoraClient(api_key="your_api_key")
+
+# Use a previously registered ontology
+ontology_id = "ont_123456789"
+
+# URLs to transform
+urls = [
+    "https://example.com/document1.pdf",
+    "https://example.com/document2.html"
+]
+
+# Metadata for the URLs
+metadata = [
+    DocumentMetadata(
+        title="Public Report",
+        source_url="https://example.com/document1.pdf",
+        tags=["public", "report"]
+    ),
+    DocumentMetadata(
+        title="Product Page",
+        source_url="https://example.com/document2.html",
+        tags=["product", "webpage"]
+    )
+]
+
+# Transform the documents from URLs
+response = client.transform_from_urls(ontology_id, urls, metadata=metadata)
+print(f"Transformation started with ID: {response.transform_id}")
+```
+
+These examples demonstrate the basic operations for transforming documents with the Graphora client library. For more detailed information about transformation concepts and options, see the [Transformation Concepts](/client/concepts/transformation) page.

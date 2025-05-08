@@ -1,0 +1,102 @@
+---
+title: 'Installation'
+description: 'How to install the Graphora client library'
+---
+
+# Installation
+
+The Graphora client library is designed to be easy to install and has minimal dependencies. This guide will walk you through the installation process and help you get set up quickly.
+
+## Requirements
+
+- Python 3.7 or higher
+- pip (Python package installer)
+
+## Installing with pip
+
+The recommended way to install the Graphora client library is using pip:
+
+```bash
+pip install graphora
+```
+
+This will install the library and all its dependencies.
+
+## Installing from source
+
+If you prefer to install from source, you can clone the repository and install it using pip:
+
+```bash
+git clone https://github.com/graphora/graphora-client.git
+cd graphora-client
+pip install -e .
+```
+
+## Dependencies
+
+The Graphora client library has the following dependencies:
+
+- `requests` - For making HTTP requests to the Graphora API
+- `pydantic` - For data validation and settings management
+- `pyyaml` - For parsing YAML ontology files
+
+These dependencies will be automatically installed when you install the library using pip.
+
+## Verifying the installation
+
+You can verify that the library is installed correctly by importing it in Python:
+
+```python
+import graphora
+
+print(graphora.__version__)
+```
+
+This should print the version number of the installed library.
+
+## Environment setup
+
+The Graphora client library uses environment variables for configuration. You can set these variables in your environment or provide them directly when initializing the client.
+
+### API key
+
+You'll need an API key to authenticate with the Graphora API. You can set it as an environment variable:
+
+```bash
+export GRAPHORA_API_KEY="your-api-key"
+```
+
+Or provide it directly when initializing the client:
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    api_key="your-api-key"
+)
+```
+
+### API URL
+
+By default, the client will use the production API URL. You can override this by setting the `GRAPHORA_API_URL` environment variable:
+
+```bash
+export GRAPHORA_API_URL="https://api.graphora.io"
+```
+
+Or provide it directly when initializing the client:
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io")
+```
+
+## Next steps
+
+Now that you have installed the Graphora client library, you can:
+
+- [Read the quickstart guide](/client/quickstart) to learn how to use the library
+- [Explore the core concepts](/client/concepts/ontology) to understand how Graphora works
+- [Check out the examples](/client/examples/ontology) to see the library in action
