@@ -14,8 +14,12 @@ After a successful merge operation, you can retrieve the resulting knowledge gra
 ```python
 from graphora import GraphoraClient
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Get the merged graph using the merge ID and transform ID
 merge_id = "merge_123456789"
@@ -28,10 +32,11 @@ print(f"Graph contains {len(graph.nodes)} nodes and {len(graph.edges)} edges")
 # Explore node types
 node_types = {}
 for node in graph.nodes:
-    if node.type in node_types:
-        node_types[node.type] += 1
-    else:
-        node_types[node.type] = 1
+    for label in node.labels:
+        if label in node_types:
+            node_types[label] += 1
+        else:
+            node_types[label] = 1
 
 print("Node types distribution:")
 for node_type, count in node_types.items():
@@ -50,6 +55,34 @@ for edge_type, count in edge_types.items():
     print(f"  {edge_type}: {count} edges")
 ```
 
+## Retrieving a Transformed Graph
+
+You can also retrieve the graph directly from a transformation before merging:
+
+```python
+from graphora import GraphoraClient
+
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
+
+# Get the transformed graph using just the transform ID
+transform_id = "transform_123456789"
+graph = client.get_transformed_graph(transform_id=transform_id)
+
+# Print basic graph statistics
+print(f"Transformed graph contains {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
+# Examine the first few nodes
+for i, node in enumerate(graph.nodes[:5]):
+    print(f"Node {i+1}: {node.id}")
+    print(f"  Labels: {node.labels}")
+    print(f"  Properties: {node.properties}")
+```
+
 ## Querying Specific Nodes
 
 You can query for specific nodes in the graph:
@@ -57,8 +90,12 @@ You can query for specific nodes in the graph:
 ```python
 from graphora import GraphoraClient
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Get the merged graph
 merge_id = "merge_123456789"
@@ -66,7 +103,7 @@ transform_id = "transform_123456789"
 graph = client.get_merged_graph(merge_id, transform_id)
 
 # Find all Person nodes
-person_nodes = [node for node in graph.nodes if node.type == "Person"]
+person_nodes = [node for node in graph.nodes if "Person" in node.labels]
 print(f"Found {len(person_nodes)} Person nodes")
 
 # Find a specific person by name
@@ -77,28 +114,89 @@ if john_nodes:
     john = john_nodes[0]
     print(f"Found {target_name}:")
     print(f"  ID: {john.id}")
+    print(f"  Labels: {john.labels}")
     print(f"  Properties: {john.properties}")
     
     # Find all edges connected to this node
-    john_edges = [edge for edge in graph.edges if edge.source_id == john.id or edge.target_id == john.id]
+    john_edges = [edge for edge in graph.edges if edge.source == john.id or edge.target == john.id]
     print(f"  Connected through {len(john_edges)} relationships")
     
     for edge in john_edges:
         # Determine if John is the source or target
-        if edge.source_id == john.id:
+        if edge.source == john.id:
             # Find the target node
-            target_nodes = [node for node in graph.nodes if node.id == edge.target_id]
+            target_nodes = [node for node in graph.nodes if node.id == edge.target]
             if target_nodes:
                 target = target_nodes[0]
-                print(f"  {target_name} {edge.type} {target.type} ({target.properties.get('name', 'Unknown')})")
+                print(f"  {target_name} {edge.type} {target.labels[0] if target.labels else 'Unknown'} ({target.properties.get('name', 'Unknown')})")
         else:
             # Find the source node
-            source_nodes = [node for node in graph.nodes if node.id == edge.source_id]
+            source_nodes = [node for node in graph.nodes if node.id == edge.source]
             if source_nodes:
                 source = source_nodes[0]
-                print(f"  {source.type} ({source.properties.get('name', 'Unknown')}) {edge.type} {target_name}")
+                print(f"  {source.labels[0] if source.labels else 'Unknown'} ({source.properties.get('name', 'Unknown')}) {edge.type} {target_name}")
 else:
     print(f"No nodes found with name {target_name}")
+```
+
+## Modifying Graph Data
+
+You can modify the graph data and save changes back:
+
+```python
+from graphora import GraphoraClient, SaveGraphRequest, NodeChange, EdgeChange
+
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
+
+# Get the current graph
+transform_id = "transform_123456789"
+graph = client.get_transformed_graph(transform_id=transform_id)
+
+# Prepare changes
+changes = SaveGraphRequest()
+
+# Add a new node
+new_node = NodeChange(
+    labels=["Person"],
+    properties={
+        "name": "Jane Smith",
+        "age": 30,
+        "email": "jane.smith@example.com"
+    }
+)
+changes.nodes.append(new_node)
+
+# Modify an existing node (assuming we know its ID)
+if graph.nodes:
+    existing_node_id = graph.nodes[0].id
+    modified_node = NodeChange(
+        id=existing_node_id,
+        labels=graph.nodes[0].labels,
+        properties={
+            **graph.nodes[0].properties,
+            "last_updated": "2024-01-01"
+        }
+    )
+    changes.nodes.append(modified_node)
+
+# Add a new edge
+if len(graph.nodes) >= 2:
+    new_edge = EdgeChange(
+        type="KNOWS",
+        source=graph.nodes[0].id,
+        target=graph.nodes[1].id,
+        properties={"since": "2024"}
+    )
+    changes.edges.append(new_edge)
+
+# Save the changes
+response = client.update_transform_graph(transform_id, changes)
+print(f"Graph updated successfully. New graph has {len(response.data.nodes)} nodes and {len(response.data.edges)} edges")
 ```
 
 ## Converting to NetworkX for Advanced Analysis
@@ -108,10 +206,13 @@ You can convert the Graphora graph to a NetworkX graph for advanced analysis:
 ```python
 from graphora import GraphoraClient
 import networkx as nx
-import matplotlib.pyplot as plt
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Get the merged graph
 merge_id = "merge_123456789"
@@ -123,202 +224,32 @@ G = nx.Graph()
 
 # Add nodes with their properties
 for node in graph.nodes:
-    G.add_node(node.id, type=node.type, **node.properties)
+    G.add_node(node.id, labels=node.labels, **node.properties)
 
 # Add edges with their properties
 for edge in graph.edges:
-    G.add_edge(edge.source_id, edge.target_id, type=edge.type, **edge.properties)
+    G.add_edge(edge.source, edge.target, type=edge.type, **edge.properties)
 
 # Now you can use NetworkX algorithms
 # Calculate centrality measures
 degree_centrality = nx.degree_centrality(G)
 betweenness_centrality = nx.betweenness_centrality(G)
-closeness_centrality = nx.closeness_centrality(G)
 
 # Find the most central nodes
 top_degree_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
 print("Top 5 nodes by degree centrality:")
 for node_id, centrality in top_degree_nodes:
-    node_type = G.nodes[node_id]['type']
+    node_labels = G.nodes[node_id]['labels']
     node_name = G.nodes[node_id].get('name', 'Unknown')
-    print(f"  {node_name} ({node_type}): {centrality:.4f}")
+    print(f"  {node_name} ({node_labels[0] if node_labels else 'Unknown'}): {centrality:.4f}")
 
-# Find communities using the Louvain method
-try:
-    from community import best_partition
-    partition = best_partition(G)
-    
-    # Count the number of communities
-    communities = set(partition.values())
-    print(f"Detected {len(communities)} communities in the graph")
-    
-    # Count nodes in each community
-    community_sizes = {}
-    for community_id in communities:
-        community_sizes[community_id] = list(partition.values()).count(community_id)
-    
-    print("Community sizes:")
-    for community_id, size in sorted(community_sizes.items(), key=lambda x: x[1], reverse=True):
-        print(f"  Community {community_id}: {size} nodes")
-except ImportError:
-    print("Community detection requires the python-louvain package")
+# Calculate basic graph metrics
+print(f"Graph density: {nx.density(G):.4f}")
+print(f"Number of connected components: {nx.number_connected_components(G)}")
+
+if nx.is_connected(G):
+    print(f"Average shortest path length: {nx.average_shortest_path_length(G):.4f}")
+    print(f"Graph diameter: {nx.diameter(G)}")
 ```
 
-## Visualizing the Graph
-
-You can visualize the graph using various libraries:
-
-```python
-from graphora import GraphoraClient
-import networkx as nx
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
-
-# Get the merged graph
-merge_id = "merge_123456789"
-transform_id = "transform_123456789"
-graph = client.get_merged_graph(merge_id, transform_id)
-
-# Convert to NetworkX graph
-G = nx.Graph()
-
-# Add nodes with their properties
-for node in graph.nodes:
-    G.add_node(node.id, type=node.type, **node.properties)
-
-# Add edges with their properties
-for edge in graph.edges:
-    G.add_edge(edge.source_id, edge.target_id, type=edge.type, **edge.properties)
-
-# Only visualize if the graph is not too large
-if len(G) <= 100:
-    # Create a color map for different node types
-    node_types = set(nx.get_node_attributes(G, 'type').values())
-    colors = list(mcolors.TABLEAU_COLORS)
-    color_map = {node_type: colors[i % len(colors)] for i, node_type in enumerate(node_types)}
-    
-    # Assign colors to nodes based on their type
-    node_colors = [color_map[G.nodes[node]['type']] for node in G.nodes]
-    
-    # Create the plot
-    plt.figure(figsize=(12, 10))
-    pos = nx.spring_layout(G, seed=42)  # For reproducibility
-    
-    # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_color=node_colors, alpha=0.8, node_size=100)
-    
-    # Draw edges
-    nx.draw_networkx_edges(G, pos, alpha=0.5, width=0.5)
-    
-    # Add labels for important nodes (e.g., high degree nodes)
-    degree = dict(G.degree())
-    important_nodes = [node for node, deg in degree.items() if deg > 2]
-    labels = {node: G.nodes[node].get('name', str(node)) for node in important_nodes}
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=8)
-    
-    # Add a legend for node types
-    legend_elements = [plt.Line2D([0], [0], marker='o', color='w', 
-                                 markerfacecolor=color, label=node_type, markersize=10)
-                      for node_type, color in color_map.items()]
-    plt.legend(handles=legend_elements, title="Node Types")
-    
-    plt.title("Knowledge Graph Visualization")
-    plt.axis('off')
-    plt.tight_layout()
-    plt.savefig("knowledge_graph.png", dpi=300)
-    print("Graph visualization saved as 'knowledge_graph.png'")
-else:
-    print("Graph too large for visualization")
-    
-    # For large graphs, consider visualizing a subgraph
-    # For example, extract a subgraph around a node of interest
-    if len(G) > 0:
-        # Find a high-degree node
-        node_degrees = dict(G.degree())
-        central_node = max(node_degrees, key=node_degrees.get)
-        
-        # Extract a subgraph of nodes within 2 steps of the central node
-        subgraph_nodes = [central_node] + list(nx.neighbors(G, central_node))
-        subgraph = G.subgraph(subgraph_nodes)
-        
-        plt.figure(figsize=(10, 8))
-        pos = nx.spring_layout(subgraph)
-        nx.draw(subgraph, pos, with_labels=True, node_color='lightblue', 
-                node_size=500, font_size=8, font_weight='bold')
-        plt.title(f"Subgraph around node {central_node}")
-        plt.savefig("subgraph.png", dpi=300)
-        print("Subgraph visualization saved as 'subgraph.png'")
-```
-
-## Exporting Graph Data
-
-You can export the graph data for use in other tools:
-
-```python
-from graphora import GraphoraClient
-import json
-import csv
-import os
-
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
-
-# Get the merged graph
-merge_id = "merge_123456789"
-transform_id = "transform_123456789"
-graph = client.get_merged_graph(merge_id, transform_id)
-
-# Export as JSON
-graph_data = {
-    "nodes": [{"id": node.id, "type": node.type, "properties": node.properties} for node in graph.nodes],
-    "edges": [{"source": edge.source_id, "target": edge.target_id, "type": edge.type, 
-               "properties": edge.properties} for edge in graph.edges]
-}
-
-with open("graph_data.json", "w") as f:
-    json.dump(graph_data, f, indent=2)
-print("Graph exported to graph_data.json")
-
-# Export nodes as CSV
-with open("nodes.csv", "w", newline="") as f:
-    # Collect all possible property keys
-    property_keys = set()
-    for node in graph.nodes:
-        property_keys.update(node.properties.keys())
-    
-    # Create CSV writer with headers
-    headers = ["id", "type"] + list(property_keys)
-    writer = csv.DictWriter(f, fieldnames=headers)
-    writer.writeheader()
-    
-    # Write node data
-    for node in graph.nodes:
-        row = {"id": node.id, "type": node.type}
-        row.update(node.properties)
-        writer.writerow(row)
-print("Nodes exported to nodes.csv")
-
-# Export edges as CSV
-with open("edges.csv", "w", newline="") as f:
-    # Collect all possible property keys
-    property_keys = set()
-    for edge in graph.edges:
-        property_keys.update(edge.properties.keys())
-    
-    # Create CSV writer with headers
-    headers = ["source", "target", "type"] + list(property_keys)
-    writer = csv.DictWriter(f, fieldnames=headers)
-    writer.writeheader()
-    
-    # Write edge data
-    for edge in graph.edges:
-        row = {"source": edge.source_id, "target": edge.target_id, "type": edge.type}
-        row.update(edge.properties)
-        writer.writerow(row)
-print("Edges exported to edges.csv")
-```
-
-These examples demonstrate the basic operations for working with knowledge graphs in the Graphora client library. For more detailed information about graph concepts and options, see the [Graph Data Model](/client/concepts/graph) page.
+These examples demonstrate the basic operations for working with knowledge graphs using the Graphora client library. For more detailed information about graph concepts and operations, see the [Graph Concepts](/client/concepts/graph) page.

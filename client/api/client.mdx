@@ -14,6 +14,7 @@ from graphora import GraphoraClient
 
 client = GraphoraClient(
     base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required: User ID for all API calls
     api_key="your-api-key",  # Optional if GRAPHORA_API_KEY env var is set
     timeout=60  # Request timeout in seconds
 )
@@ -24,8 +25,17 @@ client = GraphoraClient(
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
 | `base_url` | `str` | Base URL of the Graphora API | Required |
+| `user_id` | `str` | User ID for scoping all API operations | Required |
 | `api_key` | `str` | API key for authentication | `None` |
 | `timeout` | `int` | Request timeout in seconds | `60` |
+
+### Environment Variables
+
+The client can also use environment variables for configuration:
+
+- `GRAPHORA_USER_ID`: User ID (can be overridden by the `user_id` parameter)
+- `GRAPHORA_API_KEY`: API key (can be overridden by the `api_key` parameter)
+- `GRAPHORA_API_URL`: API URL (can be overridden by the `base_url` parameter)
 
 ## Ontology Methods
 
@@ -51,22 +61,23 @@ def register_ontology(self, ontology_yaml: str) -> OntologyResponse:
 ```python
 # Example ontology in the new format
 ontology_yaml = """
-version: 0.1.0
+version: 1
 entities:
   Company:
     properties:
       name:
-        type: str
+        type: string
         description: Name of the Company
         unique: true
         required: true
       cik:
-        type: str
+        type: string
         description: Cusip Identifier for Company
         unique: true
     relationships:
       HAS_BUSINESS:
         target: Business
+        cardinality: many_to_one
 """
     
 ontology_response = client.register_ontology(ontology_yaml)

@@ -9,12 +9,12 @@ The Graphora Client Library provides a simple and intuitive Python interface to 
 
 ## Overview
 
-Graphora is a powerful graph-based data processing platform that enables you to:
+Graphora is a Text to Knowledge Graphs platform that helps you transform unstructured text into powerful knowledge graphs. The platform enables you to:
 
 - Transform unstructured data into structured knowledge graphs
 - Define custom ontologies for your domain
 - Extract entities and relationships from documents
-- Merge and manage graph data
+- Merge and manage graph data with conflict resolution
 - Query and analyze connected data
 
 This client library makes it easy to integrate Graphora into your data pipelines, including platforms like Apache Beam, Apache Spark, and Google Cloud Dataflow.
@@ -27,6 +27,12 @@ This client library makes it easy to integrate Graphora into your data pipelines
   </Card>
   <Card title="Type Safety" icon="shield-check">
     Fully typed with Pydantic models for reliable data handling
+  </Card>
+  <Card title="User Context" icon="user">
+    All API calls are automatically scoped to the specified user
+  </Card>
+  <Card title="Async Support" icon="clock">
+    Efficient handling of long-running operations with status monitoring
   </Card>
   <Card title="Minimal Dependencies" icon="feather">
     Lightweight implementation with few external dependencies
@@ -51,10 +57,11 @@ Here's a simple example of using the Graphora client library to upload an ontolo
 ```python
 from graphora import GraphoraClient
 
-# Initialize client
+# Initialize client with user ID (required)
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    api_key="your-api-key"  # Or set GRAPHORA_API_KEY environment variable
+    user_id="your-user-id",  # Required: User ID for all API calls
+    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
 )
 
 # Register an ontology
@@ -77,6 +84,12 @@ transform_status = client.wait_for_transform(transform_response.id)
 graph = client.get_transformed_graph(transform_id=transform_response.id)
 print(f"Nodes: {len(graph.nodes)}")
 print(f"Edges: {len(graph.edges)}")
+
+# Start merging the processed data
+merge_response = client.start_merge(
+    session_id=ontology_id,
+    transform_id=transform_response.id
+)
 ```
 
 ## Next Steps

@@ -17,7 +17,7 @@ pip install graphora
 
 ## Authentication
 
-To use the Graphora API, you'll need an API key. You can provide this key in two ways:
+To use the Graphora API, you'll need an API key and a user ID. The user ID is required to scope all API operations to your account. You can provide these credentials in several ways:
 
 <CodeGroup>
 ```python Direct initialization
@@ -25,17 +25,31 @@ from graphora import GraphoraClient
 
 client = GraphoraClient(
     base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required
     api_key="your-api-key"
 )
 ```
 
-```python Environment variable
-# Set the environment variable
+```python Environment variables
+# Set the environment variables
+# export GRAPHORA_USER_ID="your-user-id"
 # export GRAPHORA_API_KEY="your-api-key"
 
 from graphora import GraphoraClient
 
 client = GraphoraClient(base_url="https://api.graphora.io")
+```
+
+```python Mixed approach
+# Set API key as environment variable
+# export GRAPHORA_API_KEY="your-api-key"
+
+from graphora import GraphoraClient
+
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id"  # user_id provided directly
+)
 ```
 </CodeGroup>
 
@@ -58,8 +72,12 @@ An ontology defines the structure of your knowledge graph, including entity type
 ```python
 from graphora import GraphoraClient
 
-# Initialize client
-client = GraphoraClient(base_url="https://api.graphora.io")
+# Initialize client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
+)
 
 # Load ontology from a file
 with open("ontology.yaml", "r") as f:
@@ -76,7 +94,7 @@ print(f"Ontology ID: {ontology_id}")
 Once you have an ontology, you can upload documents to be processed according to that ontology.
 
 ```python
-# Upload documents
+# Upload documents for processing
 transform_response = client.transform(
     ontology_id=ontology_id,
     files=["document1.pdf", "document2.txt"]
@@ -175,8 +193,12 @@ Here's a complete example that ties all these steps together:
 from graphora import GraphoraClient
 import time
 
-# Initialize client
-client = GraphoraClient(base_url="https://api.graphora.io")
+# Initialize client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required: User ID for all API calls
+    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
+)
 
 # Load and upload ontology
 with open("ontology.yaml", "r") as f:
@@ -186,7 +208,7 @@ ontology_response = client.register_ontology(ontology_yaml)
 ontology_id = ontology_response.id
 print(f"Ontology ID: {ontology_id}")
 
-# Upload documents
+# Upload documents for processing
 transform_response = client.transform(
     ontology_id=ontology_id,
     files=["document1.pdf", "document2.txt"]

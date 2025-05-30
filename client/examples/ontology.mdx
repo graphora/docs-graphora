@@ -14,8 +14,12 @@ The following example demonstrates how to create an ontology definition and regi
 ```python
 from graphora import GraphoraClient
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Define your ontology
 ontology_yaml = """
@@ -58,7 +62,7 @@ entities:
 
 # Register the ontology
 response = client.register_ontology(ontology_yaml)
-print(f"Ontology registered with ID: {response.ontology_id}")
+print(f"Ontology registered with ID: {response.id}")
 ```
 
 ## Loading an Ontology from a File
@@ -66,55 +70,43 @@ print(f"Ontology registered with ID: {response.ontology_id}")
 You can also load an ontology from a YAML file:
 
 ```python
-import os
 from graphora import GraphoraClient
-from graphora.utils import load_yaml
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Load the ontology from a file
-ontology_path = os.path.join("path", "to", "ontology.yaml")
-ontology_yaml = load_yaml(ontology_path)
+with open("ontology.yaml", "r") as f:
+    ontology_yaml = f.read()
 
 # Register the ontology
 response = client.register_ontology(ontology_yaml)
-print(f"Ontology registered with ID: {response.ontology_id}")
+print(f"Ontology registered with ID: {response.id}")
 ```
 
-## Validating an Ontology
+## Retrieving an Existing Ontology
 
-Before registering an ontology, you might want to validate it locally:
+You can retrieve a previously registered ontology by its ID:
 
 ```python
 from graphora import GraphoraClient
-from graphora.models import Ontology
-from pydantic import ValidationError
 
-# Define your ontology
-ontology_yaml = """
-version: 1
-entities:
-  Person:
-    properties:
-      name:
-        type: string
-      age:
-        type: integer
-"""
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
-try:
-    # Parse and validate the ontology
-    ontology = Ontology.parse_yaml(ontology_yaml)
-    print("Ontology is valid!")
-    
-    # Now you can register it
-    client = GraphoraClient(api_key="your_api_key")
-    response = client.register_ontology(ontology_yaml)
-    print(f"Ontology registered with ID: {response.ontology_id}")
-    
-except ValidationError as e:
-    print(f"Ontology validation failed: {e}")
+# Retrieve an ontology by ID
+ontology_id = "your-ontology-id"
+ontology_yaml = client.get_ontology(ontology_id)
+print("Retrieved ontology:")
+print(ontology_yaml)
 ```
 
 ## Updating an Existing Ontology
@@ -124,8 +116,12 @@ To update an existing ontology, you can use the same `register_ontology` method 
 ```python
 from graphora import GraphoraClient
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Define your updated ontology
 updated_ontology_yaml = """
@@ -172,7 +168,7 @@ entities:
 
 # Register the updated ontology
 response = client.register_ontology(updated_ontology_yaml)
-print(f"Updated ontology registered with ID: {response.ontology_id}")
+print(f"Updated ontology registered with ID: {response.id}")
 ```
 
 These examples demonstrate the basic operations you can perform with ontologies in the Graphora client library. For more detailed information about ontology structure and options, see the [Ontology Concepts](/client/concepts/ontology) page.

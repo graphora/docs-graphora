@@ -13,29 +13,32 @@ The following example demonstrates how to transform a set of documents using a r
 
 ```python
 from graphora import GraphoraClient
-import os
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Use a previously registered ontology
 ontology_id = "ont_123456789"
 
 # Prepare a list of document files to transform
 document_paths = [
-    "/path/to/document1.pdf",
-    "/path/to/document2.docx",
-    "/path/to/document3.txt"
+    "document1.pdf",
+    "document2.docx",
+    "document3.txt"
 ]
 
 # Transform the documents
 response = client.transform(ontology_id, document_paths)
-print(f"Transformation started with ID: {response.transform_id}")
+print(f"Transformation started with ID: {response.id}")
 
 # Check the status of the transformation
-status = client.get_transform_status(response.transform_id)
+status = client.get_transform_status(response.id)
 print(f"Transformation status: {status.status}")
-print(f"Progress: {status.progress}%")
+print(f"Progress: {status.progress:.2%}")
 ```
 
 ## Transforming Documents with Metadata
@@ -43,40 +46,39 @@ print(f"Progress: {status.progress}%")
 You can also provide metadata for each document to enrich the transformation process:
 
 ```python
-from graphora import GraphoraClient
-from graphora.models import DocumentMetadata
-import os
-from datetime import datetime
+from graphora import GraphoraClient, DocumentMetadata, DocumentType
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Use a previously registered ontology
 ontology_id = "ont_123456789"
 
 # Prepare document paths and metadata
 document_paths = [
-    "/path/to/document1.pdf",
-    "/path/to/document2.docx"
+    "document1.pdf",
+    "document2.docx"
 ]
 
 metadata = [
     DocumentMetadata(
-        title="Annual Report 2024",
-        author="Finance Department",
-        date=datetime(2024, 3, 15),
+        source="Annual Report 2024",
+        document_type=DocumentType.PDF,
         tags=["finance", "annual", "report"],
-        custom_attributes={
+        custom_metadata={
             "department": "Finance",
             "confidentiality": "Internal"
         }
     ),
     DocumentMetadata(
-        title="Product Specifications",
-        author="Engineering Team",
-        date=datetime(2024, 2, 10),
+        source="Product Specifications",
+        document_type=DocumentType.DOCX,
         tags=["product", "specifications", "technical"],
-        custom_attributes={
+        custom_metadata={
             "department": "Engineering",
             "product_id": "PRD-2024-001"
         }
@@ -85,7 +87,7 @@ metadata = [
 
 # Transform the documents with metadata
 response = client.transform(ontology_id, document_paths, metadata=metadata)
-print(f"Transformation started with ID: {response.transform_id}")
+print(f"Transformation started with ID: {response.id}")
 ```
 
 ## Monitoring Transformation Progress
@@ -96,18 +98,22 @@ For long-running transformations, you can monitor the progress:
 from graphora import GraphoraClient
 import time
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Start a transformation (assuming you have already set up the ontology and documents)
 transform_response = client.transform(ontology_id, document_paths)
-transform_id = transform_response.transform_id
+transform_id = transform_response.id
 
 # Monitor the transformation progress
 completed = False
 while not completed:
     status = client.get_transform_status(transform_id)
-    print(f"Status: {status.status}, Progress: {status.progress}%")
+    print(f"Status: {status.status}, Progress: {status.progress:.2%}")
     
     if status.status in ["COMPLETED", "FAILED"]:
         completed = True
@@ -124,72 +130,62 @@ if status.status == "COMPLETED":
     print("Ready to merge the transformed data into a graph")
 ```
 
+## Using the Wait Helper Method
+
+You can also use the built-in wait method for convenience:
+
+```python
+from graphora import GraphoraClient
+
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
+
+# Start a transformation
+transform_response = client.transform(ontology_id, document_paths)
+transform_id = transform_response.id
+
+# Wait for completion (with timeout)
+try:
+    final_status = client.wait_for_transform(transform_id, timeout=300)  # 5 minutes
+    print(f"Transformation completed with status: {final_status.status}")
+except Exception as e:
+    print(f"Transformation failed or timed out: {e}")
+```
+
 ## Handling Different Document Types
 
 Graphora supports various document types. Here's how to transform a mix of document types:
 
 ```python
 from graphora import GraphoraClient
-import os
 
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
+# Initialize the client with user ID (required)
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="your-user-id",  # Required for all API calls
+    api_key="your-api-key"
+)
 
 # Use a previously registered ontology
 ontology_id = "ont_123456789"
 
 # Prepare a list of different document types
 documents = [
-    "/path/to/text_document.txt",      # Plain text
-    "/path/to/word_document.docx",     # Microsoft Word
-    "/path/to/pdf_document.pdf",       # PDF
-    "/path/to/presentation.pptx",      # PowerPoint
-    "/path/to/spreadsheet.xlsx",       # Excel
-    "/path/to/webpage.html"            # HTML
+    "text_document.txt",      # Plain text
+    "word_document.docx",     # Microsoft Word
+    "pdf_document.pdf",       # PDF
+    "data.csv",               # CSV
+    "config.json",            # JSON
+    "schema.yaml"             # YAML
 ]
 
 # Transform the documents
 response = client.transform(ontology_id, documents)
-print(f"Transformation started with ID: {response.transform_id}")
-```
-
-## Transforming Documents from URLs
-
-You can also transform documents directly from URLs:
-
-```python
-from graphora import GraphoraClient
-from graphora.models import DocumentMetadata
-
-# Initialize the client
-client = GraphoraClient(api_key="your_api_key")
-
-# Use a previously registered ontology
-ontology_id = "ont_123456789"
-
-# URLs to transform
-urls = [
-    "https://example.com/document1.pdf",
-    "https://example.com/document2.html"
-]
-
-# Metadata for the URLs
-metadata = [
-    DocumentMetadata(
-        title="Public Report",
-        source_url="https://example.com/document1.pdf",
-        tags=["public", "report"]
-    ),
-    DocumentMetadata(
-        title="Product Page",
-        source_url="https://example.com/document2.html",
-        tags=["product", "webpage"]
-    )
-]
-
-# Transform the documents from URLs
-response = client.transform_from_urls(ontology_id, urls, metadata=metadata)
-print(f"Transformation started with ID: {response.transform_id}")
+print(f"Transformation started with ID: {response.id}")
 ```
 
 These examples demonstrate the basic operations for transforming documents with the Graphora client library. For more detailed information about transformation concepts and options, see the [Transformation Concepts](/client/concepts/transformation) page.
