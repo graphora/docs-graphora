@@ -1,0 +1,332 @@
+---
+title: 'Complete Platform User Guide'
+description: 'Step-by-step guide for new users to get started with Graphora UI Frontend'
+---
+
+# Complete Platform User Guide
+
+This comprehensive guide will walk you through the entire Graphora platform workflow, from initial setup to successfully managing your knowledge graphs. Follow these steps in order for the best experience.
+
+## Step 1: Configure Database and API Settings
+
+When you first access Graphora, you'll need to provide your database details and AI API key on the **Config** page.
+
+### Required Configuration
+
+1. **Navigate to the Config page** in your Graphora dashboard
+2. **Database Configuration**: Provide your Neo4j database connection details:
+   - **URI**: Your Neo4j database URI (e.g., `bolt://localhost:7687`)
+   - **Username**: Database username
+   - **Password**: Database password
+   - **Environment**: Choose between staging and production databases
+
+3. **AI API Key**: Configure your Gemini API key for AI-powered processing:
+   - **Gemini API Key**: Your Google AI Studio API key
+   - This enables AI-powered document processing and knowledge extraction
+
+<Note>
+Graphora follows a BYOK (Bring Your Own Key) architecture, meaning your API keys and database credentials remain under your control and are never stored on Graphora's servers.
+</Note>
+
+### Validation
+
+After entering your configuration:
+- Test your database connection to ensure it's working
+- Verify your Gemini API key is valid
+- Save your configuration before proceeding
+
+---
+
+## Step 2: Create or Import Your Schema
+
+Next, you'll need to define the structure of your knowledge graph using the **AI Copilot** page.
+
+### For New Users (No Existing Schema)
+
+1. **Navigate to the AI Copilot page**
+2. **Describe your domain**: Provide a clear description of what you want to model
+   - Example: "I want to model a company's organizational structure with employees, departments, and projects"
+3. **Use AI to generate schema**: The AI will create an ontology definition for you
+4. **Review and refine**: Adjust the generated schema as needed
+5. **Save your ontology**: The system will validate and store your schema
+
+### For Users with Existing Schemas
+
+If you already have an ontology definition, it must adhere to the **Ontology Editor YAML format**:
+
+<Card title="Ontology YAML Format" icon="file-code" href="/client/ontology-editor/yaml-syntax">
+  Learn about the complete YAML syntax, structure, and requirements for ontology definitions.
+</Card>
+
+**Key Requirements**:
+- Use **camelCase** for all property names
+- Follow the version 1 format specification
+- Include proper entity definitions with properties and relationships
+- Define quality rules for data validation
+
+**Example Structure**:
+```yaml
+version: 1
+entities:
+  Company:
+    properties:
+      companyName:
+        type: string
+        description: Official name of the company
+        required: true
+        unique: true
+      foundedYear:
+        type: integer
+        description: Year the company was founded
+    relationships:
+      HAS_EMPLOYEE:
+        target: Person
+        cardinality: one_to_many
+```
+
+---
+
+## Step 3: Transform Documents into Knowledge Graphs
+
+Once your schema is ready, move to the **Transform** page to process your documents.
+
+### Document Upload and Processing
+
+1. **Select your ontology**: Choose the schema you created or imported
+2. **Upload documents**: Support for multiple formats:
+   - PDF files
+   - Text files (.txt)
+   - Markdown files (.md)
+3. **Start transformation**: The system will:
+   - Extract text from your documents
+   - Use AI to identify entities and relationships
+   - Structure the data according to your ontology
+   - Generate a knowledge graph
+
+### Monitoring Progress
+
+- **Real-time status updates**: Track the transformation progress
+- **Resource metrics**: Monitor processing time and resource usage
+- **Error handling**: View any processing errors or warnings
+
+---
+
+## Step 4: Quality Assessment and Review
+
+After transformation, the system automatically performs **quality validation** on your extracted knowledge graph.
+
+### Understanding Quality Metrics
+
+The quality system provides:
+
+- **Overall Score**: 0-100 scale with letter grades (A-F)
+- **Violation Summary**: Categorized by severity (Error, Warning, Info)
+- **Rule Types**: Format rules, business rules, and completeness checks
+- **Detailed Reports**: Entity-level and property-level validation results
+
+### Quality Rules Include:
+
+- **Format Rules**: Data type validation, format compliance
+- **Business Rules**: Domain-specific constraints and validations  
+- **Completeness Rules**: Required property validation, relationship verification
+- **Consistency Rules**: Cross-entity validation and constraint checking
+
+### Quality Decision Points
+
+Based on the quality results, you have several options:
+
+**High Quality (Score ≥ 90, No Errors)**:
+- ✅ **Approve and Proceed**: Automatically move to merge process
+- Quality is sufficient for production use
+
+**Moderate Quality (Score 70-89)**:
+- ⚠️ **Manual Review Required**: Examine violations and make informed decision
+- Consider acceptable risk vs. data value
+- Add feedback comments for future improvements
+
+**Low Quality (Score < 70)**:
+- ❌ **Reject and Retry**: Fix source data or adjust ontology
+- Address critical errors before proceeding
+- Provide detailed feedback for system learning
+
+---
+
+## Step 5: Provide Feedback and Iterate
+
+The quality assessment stage allows you to provide valuable feedback to improve future processing.
+
+### Feedback Options
+
+1. **Approval with Comments**: Explain why you're accepting despite issues
+2. **Rejection with Reasons**: Detail what needs to be fixed
+3. **Quality Suggestions**: Recommend improvements for similar data
+
+### Retry Process
+
+If you reject the quality results:
+1. **Address root causes**: Fix source documents or adjust ontology
+2. **Re-run transformation**: Process the corrected data
+3. **Review improved results**: Check if quality issues are resolved
+
+---
+
+## Step 6: Merge Process and Conflict Resolution
+
+If quality is approved, the system proceeds to the **Merge** page to integrate your new data with existing production data.
+
+### Automatic Conflict Detection
+
+The system automatically detects potential conflicts:
+- **Duplicate entities**: Same entity with different properties
+- **Conflicting values**: Different values for the same property
+- **Relationship conflicts**: Inconsistent relationship definitions
+- **Schema mismatches**: Entity structure differences
+
+### Human-in-the-Loop Resolution
+
+When conflicts are detected, **human involvement is required**:
+
+#### Conflict Resolution Options
+
+1. **Accept New Data**: Use the newly extracted information
+2. **Keep Existing**: Maintain current production data
+3. **Merge Values**: Combine information from both sources
+4. **Custom Resolution**: Create a hybrid solution
+
+#### Learning Comments
+
+For each resolution, you can provide **learning comments**:
+- Explain why you chose a particular resolution
+- Provide context for similar future conflicts
+- Help the system learn your preferences
+- Enable automated resolution of similar issues
+
+**Example Learning Comment**:
+```
+"When company names differ only in legal entity type (Inc. vs. Corp.), 
+prefer the more recent document as it's likely more current."
+```
+
+### Future Automation
+
+Your learning comments enable the system to:
+- Automatically resolve similar conflicts in the future
+- Apply your business rules consistently
+- Reduce manual intervention over time
+- Improve overall system intelligence
+
+---
+
+## Step 7: Final Persistence and Versioning
+
+After all conflicts are resolved, the final step persists your data to the production database.
+
+### Data Persistence
+
+- **Clean Integration**: Resolved data is stored in production Neo4j
+- **Relationship Creation**: All entity relationships are properly linked
+- **Index Updates**: Search indexes are updated for optimal performance
+
+### Versioning Strategy
+
+Graphora implements a sophisticated versioning system:
+
+#### Version Management
+
+- **New Nodes**: Completely new entities get version 1
+- **Updated Nodes**: Modified entities get incremented versions
+- **Historical Preservation**: Previous versions are retained, not deleted
+- **Version Marking**: Old nodes are marked as previous versions
+
+#### Benefits of Versioning
+
+1. **Audit Trail**: Complete history of all changes
+2. **Rollback Capability**: Ability to revert to previous versions
+3. **Temporal Queries**: Query data as it existed at specific points in time
+4. **Change Tracking**: Monitor how your knowledge graph evolves
+
+#### Version Resolution Example
+
+```
+Original Node: Company "ABC Corp" (v1)
+├── Updated to: Company "ABC Corporation" (v2) ← Current
+└── Previous: Company "ABC Corp" (v1) ← Retained but marked as previous
+```
+
+---
+
+## Step 8: Monitoring and Maintenance
+
+After successful data integration, monitor your knowledge graph's ongoing performance.
+
+### Available Monitoring
+
+- **Quality Trends**: Track quality improvements over time
+- **Conflict Patterns**: Identify common conflict types
+- **Processing Metrics**: Monitor transformation performance
+- **Data Growth**: Track knowledge graph expansion
+
+### Best Practices
+
+1. **Regular Quality Reviews**: Periodically review quality thresholds
+2. **Ontology Evolution**: Update schemas as your domain evolves  
+3. **Feedback Analysis**: Review learning comments for optimization opportunities
+4. **Performance Monitoring**: Watch for processing bottlenecks
+
+---
+
+## Troubleshooting Common Issues
+
+### Configuration Problems
+
+- **Database Connection Failed**: Verify URI, credentials, and network access
+- **API Key Invalid**: Check Gemini API key format and permissions
+- **Permission Errors**: Ensure database user has required permissions
+
+### Schema Issues
+
+- **Validation Errors**: Review YAML syntax and property naming (use camelCase)
+- **Missing Relationships**: Ensure all entity relationships are properly defined
+- **Quality Rule Conflicts**: Check for contradictory validation rules
+
+### Processing Problems
+
+- **Transformation Stuck**: Check document format and file size limits
+- **Low Quality Scores**: Review source data quality and ontology alignment
+- **Memory Issues**: Consider breaking large documents into smaller chunks
+
+### Merge Conflicts
+
+- **Too Many Conflicts**: Review entity matching criteria and uniqueness rules
+- **Resolution Failures**: Ensure learning comments are clear and actionable
+- **Performance Issues**: Monitor conflict resolution processing time
+
+---
+
+## Getting Help
+
+If you encounter issues during any step:
+
+1. **Check Documentation**: Review relevant sections of this guide
+2. **Quality Reports**: Use detailed quality violation reports for debugging
+3. **System Logs**: Monitor processing logs for error details
+4. **Support Contact**: Reach out to support@graphora.io for assistance
+
+---
+
+## Next Steps
+
+Once you've completed your first successful workflow:
+
+- **Explore Advanced Features**: Learn about bulk processing and automation
+- **API Integration**: Consider using the [GraphoraClient library](/client/introduction) for programmatic access
+- **Quality Optimization**: Fine-tune your ontology and quality rules
+- **Scale Your Operations**: Process larger document sets and complex ontologies
+
+<Card title="Python Client Library" icon="code" href="/client/introduction">
+  Learn how to integrate Graphora programmatically using our Python client library.
+</Card>
+
+---
+
+*This guide covers the complete end-to-end workflow for Graphora platform users. Each step builds on the previous one to ensure a smooth and successful knowledge graph creation experience.*

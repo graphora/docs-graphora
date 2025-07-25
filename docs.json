@@ -19,6 +19,12 @@
               "index",
               "quickstart"
             ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "platform/user-guide"
+            ]
           }
         ]
       },
@@ -38,6 +44,7 @@
             "pages": [
               "client/concepts/ontology",
               "client/concepts/transformation",
+              "client/concepts/quality",
               "client/concepts/merging",
               "client/concepts/graph"
             ]

@@ -539,6 +539,342 @@ graph = client.get_merged_graph(
 print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
 ```
 
+## Quality Validation Methods
+
+The GraphoraClient includes comprehensive quality validation methods to assess and manage the quality of extracted knowledge graphs.
+
+### get_quality_results
+
+Get quality validation results for a transform.
+
+```python
+def get_quality_results(self, transform_id: str) -> QualityResults:
+    """
+    Get quality validation results for a transform.
+    
+    Args:
+        transform_id: ID of the transformation to get quality results for
+        
+    Returns:
+        QualityResults with validation metrics, violations, and scores
+    """
+```
+
+#### Example
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io", user_id="user-123")
+
+# Get quality results
+results = client.get_quality_results("your-transform-id")
+
+print(f"Overall Score: {results.overall_score:.1f}/100")
+print(f"Grade: {results.grade}")
+print(f"Requires Review: {results.requires_review}")
+print(f"Total Violations: {len(results.violations)}")
+print(f"Rules Applied: {results.rules_applied}")
+print(f"Property Completeness: {results.metrics.property_completeness_rate:.1f}%")
+
+# Check violations by severity
+for severity, count in results.violations_by_severity.items():
+    print(f"  {severity}: {count}")
+```
+
+### approve_quality_results
+
+Approve quality validation results and proceed to merge.
+
+```python
+def approve_quality_results(
+    self, 
+    transform_id: str, 
+    approval_comment: Optional[str] = None
+) -> QualityApprovalResponse:
+    """
+    Approve quality validation results and proceed to merge.
+    
+    Args:
+        transform_id: ID of the transformation to approve
+        approval_comment: Optional comment about the approval
+        
+    Returns:
+        QualityApprovalResponse confirming the approval
+    """
+```
+
+#### Example
+
+```python
+# Approve with comment
+approval = client.approve_quality_results(
+    transform_id="your-transform-id",
+    approval_comment="Quality looks good, proceeding to merge"
+)
+
+print(f"Status: {approval.status}")
+print(f"Message: {approval.message}")
+```
+
+### reject_quality_results
+
+Reject quality validation results and stop the process.
+
+```python
+def reject_quality_results(
+    self, 
+    transform_id: str, 
+    rejection_reason: str
+) -> QualityRejectionResponse:
+    """
+    Reject quality validation results and stop the process.
+    
+    Args:
+        transform_id: ID of the transformation to reject
+        rejection_reason: Required reason for rejecting the results
+        
+    Returns:
+        QualityRejectionResponse confirming the rejection
+    """
+```
+
+#### Example
+
+```python
+# Reject with reason
+rejection = client.reject_quality_results(
+    transform_id="your-transform-id",
+    rejection_reason="Too many validation errors, needs manual review"
+)
+
+print(f"Status: {rejection.status}")
+print(f"Reason: {rejection.reason}")
+```
+
+### get_quality_violations
+
+Get detailed quality violations with filtering and pagination.
+
+```python
+def get_quality_violations(
+    self,
+    transform_id: str,
+    violation_type: Optional[QualityRuleType] = None,
+    severity: Optional[QualitySeverity] = None,
+    entity_type: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+) -> QualityViolationsResponse:
+    """
+    Get detailed quality violations with filtering and pagination.
+    
+    Args:
+        transform_id: ID of the transformation
+        violation_type: Filter by rule type (format, business, etc.)
+        severity: Filter by severity level (error, warning, info)
+        entity_type: Filter by entity type
+        limit: Maximum number of violations to return (1-1000)
+        offset: Number of violations to skip for pagination
+        
+    Returns:
+        QualityViolationsResponse with filtered violations
+    """
+```
+
+#### Example
+
+```python
+from graphora.models import QualitySeverity, QualityRuleType
+
+# Get only error violations
+error_violations = client.get_quality_violations(
+    transform_id="your-transform-id",
+    severity=QualitySeverity.ERROR,
+    limit=50
+)
+
+print(f"Found {error_violations.total_returned} error violations:")
+for violation in error_violations.violations:
+    print(f"  {violation.message}")
+    print(f"    Entity: {violation.entity_type} (ID: {violation.entity_id})")
+    if violation.property_name:
+        print(f"    Property: {violation.property_name}")
+    print(f"    Expected: {violation.expected}")
+    print(f"    Actual: {violation.actual}")
+    if violation.suggestion:
+        print(f"    Suggestion: {violation.suggestion}")
+
+# Get format violations for Company entities
+format_violations = client.get_quality_violations(
+    transform_id="your-transform-id",
+    violation_type=QualityRuleType.FORMAT,
+    entity_type="Company",
+    limit=25
+)
+```
+
+### get_quality_summary
+
+Get summary of recent quality results for the user.
+
+```python
+def get_quality_summary(self, limit: int = 10) -> QualitySummaryResponse:
+    """
+    Get summary of recent quality results for the user.
+    
+    Args:
+        limit: Number of recent results to return (1-50)
+        
+    Returns:
+        QualitySummaryResponse with recent quality result summaries
+    """
+```
+
+#### Example
+
+```python
+# Get recent quality results
+summary = client.get_quality_summary(limit=5)
+
+print(f"Recent quality results: {summary.total_returned}")
+for i, result in enumerate(summary.recent_quality_results, 1):
+    print(f"{i}. Transform: {result.get('transform_id', 'N/A')}")
+    print(f"   Score: {result.get('overall_score', 'N/A')}")
+    print(f"   Grade: {result.get('grade', 'N/A')}")
+    print(f"   Status: {result.get('status', 'N/A')}")
+```
+
+### delete_quality_results
+
+Delete quality validation results for a transform.
+
+```python
+def delete_quality_results(self, transform_id: str) -> QualityDeleteResponse:
+    """
+    Delete quality validation results for a transform.
+    
+    Args:
+        transform_id: ID of the transformation to delete results for
+        
+    Returns:
+        QualityDeleteResponse confirming the deletion
+    """
+```
+
+#### Example
+
+```python
+# Delete quality results
+deletion = client.delete_quality_results("your-transform-id")
+print(f"Deletion result: {deletion.message}")
+```
+
+### get_quality_health
+
+Check the health and availability of the quality validation API.
+
+```python
+def get_quality_health(self) -> QualityHealthResponse:
+    """
+    Check the health and availability of the quality validation API.
+    
+    Returns:
+        QualityHealthResponse with health status information
+    """
+```
+
+#### Example
+
+```python
+# Check quality API health
+health = client.get_quality_health()
+print(f"Quality API Status: {health.status}")
+print(f"Available: {health.quality_api_available}")
+print(f"Message: {health.message}")
+
+if not health.quality_api_available:
+    print("Quality validation is not available!")
+```
+
+### Quality Workflow Example
+
+Here's a complete example showing a typical quality validation workflow:
+
+```python
+from graphora import GraphoraClient
+from graphora.models import QualitySeverity
+from graphora.exceptions import GraphoraAPIError
+
+client = GraphoraClient(
+    base_url="https://api.graphora.io",
+    user_id="user-123",
+    api_key="your-api-key"
+)
+
+try:
+    # 1. Check if quality API is available
+    health = client.get_quality_health()
+    if not health.quality_api_available:
+        print("Quality validation not available")
+        exit(1)
+    
+    # 2. Get quality results
+    transform_id = "your-transform-id"
+    results = client.get_quality_results(transform_id)
+    
+    print(f"Quality Score: {results.overall_score:.1f}/100")
+    print(f"Grade: {results.grade}")
+    print(f"Total Violations: {len(results.violations)}")
+    
+    # 3. Check for critical errors
+    error_violations = client.get_quality_violations(
+        transform_id=transform_id,
+        severity=QualitySeverity.ERROR,
+        limit=10
+    )
+    
+    # 4. Make decision based on quality
+    if results.overall_score >= 90 and error_violations.total_returned == 0:
+        # High quality - auto approve
+        approval = client.approve_quality_results(
+            transform_id=transform_id,
+            approval_comment="High quality score - auto approved"
+        )
+        print(f"✅ {approval.message}")
+        
+    elif results.overall_score >= 70:
+        # Moderate quality - manual review
+        print("⚠️ Moderate quality - requires manual review")
+        
+        # Show top violations for review
+        for violation in error_violations.violations[:5]:
+            print(f"❌ {violation.message}")
+            print(f"   Entity: {violation.entity_type}.{violation.property_name}")
+        
+        # In a real application, you'd prompt for user decision
+        # For this example, we'll approve with a comment
+        approval = client.approve_quality_results(
+            transform_id=transform_id,
+            approval_comment=f"Manually approved despite {error_violations.total_returned} errors"
+        )
+        print(f"✅ {approval.message}")
+        
+    else:
+        # Low quality - reject
+        rejection = client.reject_quality_results(
+            transform_id=transform_id,
+            rejection_reason=f"Quality too low: {results.overall_score:.1f}/100 with {error_violations.total_returned} errors"
+        )
+        print(f"❌ {rejection.message}")
+        print(f"Reason: {rejection.reason}")
+
+except GraphoraAPIError as e:
+    print(f"API Error: {e.message} (Status: {e.status_code})")
+except Exception as e:
+    print(f"Error: {str(e)}")
+```
+
 ## Error Handling
 
 The `GraphoraClient` methods can raise the following exceptions:

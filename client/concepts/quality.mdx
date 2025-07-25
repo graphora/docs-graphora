@@ -1,0 +1,392 @@
+---
+title: 'Quality Validation'
+description: "Understanding Graphora's comprehensive quality validation system for knowledge graphs"
+---
+
+# Quality Validation
+
+Quality validation is a critical component of Graphora's knowledge graph generation pipeline. It ensures that extracted data meets your business requirements and maintains high standards before being merged into production databases.
+
+## Overview
+
+Graphora's quality validation system automatically evaluates extracted knowledge graphs against predefined rules and standards, providing comprehensive feedback about data quality, completeness, and correctness.
+
+### Key Benefits
+
+- **Automated Quality Assessment**: Systematic evaluation of extracted data
+- **Comprehensive Scoring**: 0-100 scale with letter grades (A-F)
+- **Detailed Violation Reports**: Entity and property-level feedback
+- **Business Rule Validation**: Custom domain-specific checks
+- **Quality-Driven Workflows**: Approval/rejection based on quality thresholds
+
+---
+
+## Quality Metrics
+
+### Overall Quality Score
+
+The system provides an overall quality score from 0-100 with corresponding letter grades:
+
+- **A (90-100)**: Excellent quality, ready for production
+- **B (80-89)**: Good quality, minor issues acceptable
+- **C (70-79)**: Average quality, review recommended
+- **D (60-69)**: Below average, significant issues present
+- **F (0-59)**: Poor quality, requires attention
+
+### Detailed Metrics
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io", user_id="user-123")
+results = client.get_quality_results("transform-123")
+
+print(f"Overall Score: {results.overall_score:.1f}/100")
+print(f"Grade: {results.grade}")
+print(f"Property Completeness: {results.metrics.property_completeness_rate:.1f}%")
+print(f"Rules Applied: {results.rules_applied}")
+print(f"Total Violations: {len(results.violations)}")
+```
+
+---
+
+## Quality Rule Types
+
+### Format Rules
+
+Validate data types, formats, and structural requirements:
+
+- **Data Type Validation**: Ensure properties match expected types (string, integer, date)
+- **Format Compliance**: Validate patterns like email addresses, phone numbers, URLs
+- **Range Validation**: Check numeric values fall within acceptable ranges
+- **Length Constraints**: Verify string lengths meet requirements
+
+**Example Format Rules**:
+```yaml
+entities:
+  Company:
+    properties:
+      email:
+        type: string
+        format: email
+        required: true
+      foundedYear:
+        type: integer
+        minimum: 1800
+        maximum: 2024
+```
+
+### Business Rules
+
+Domain-specific validation based on your business logic:
+
+- **Uniqueness Constraints**: Ensure unique identifiers are truly unique
+- **Relationship Validation**: Verify relationships make business sense
+- **Cross-Entity Validation**: Check consistency across related entities
+- **Custom Logic**: Apply domain-specific business rules
+
+**Example Business Rules**:
+```yaml
+entities:
+  Person:
+    properties:
+      birthDate:
+        type: date
+        businessRules:
+          - name: "realistic_birth_date"
+            description: "Birth date should be within realistic human lifespan"
+            validation: "birthDate >= '1900-01-01' AND birthDate <= today()"
+```
+
+### Completeness Rules
+
+Ensure required information is present and complete:
+
+- **Required Properties**: Validate all mandatory fields are populated
+- **Relationship Completeness**: Check required relationships exist
+- **Coverage Analysis**: Assess what percentage of expected data is present
+- **Missing Data Detection**: Identify gaps in the knowledge graph
+
+### Consistency Rules
+
+Maintain data consistency across the knowledge graph:
+
+- **Cross-Reference Validation**: Ensure referenced entities exist
+- **Temporal Consistency**: Validate date and time relationships
+- **Hierarchical Consistency**: Check parent-child relationships
+- **Constraint Validation**: Enforce complex multi-entity constraints
+
+---
+
+## Quality Violations
+
+### Violation Severity Levels
+
+Quality violations are categorized by severity:
+
+#### Error (High Severity)
+- **Impact**: Critical issues that prevent data usage
+- **Examples**: Missing required properties, invalid data types, broken relationships
+- **Recommendation**: Must be fixed before proceeding
+
+#### Warning (Medium Severity)
+- **Impact**: Issues that may affect data quality but don't prevent usage
+- **Examples**: Missing optional properties, format inconsistencies
+- **Recommendation**: Should be reviewed and potentially fixed
+
+#### Info (Low Severity)
+- **Impact**: Minor issues or suggestions for improvement
+- **Examples**: Optimization suggestions, style inconsistencies
+- **Recommendation**: Optional improvements
+
+### Violation Details
+
+Each violation provides comprehensive information:
+
+```python
+from graphora.models import QualitySeverity
+
+# Get error-level violations
+error_violations = client.get_quality_violations(
+    transform_id="transform-123",
+    severity=QualitySeverity.ERROR,
+    limit=10
+)
+
+for violation in error_violations.violations:
+    print(f"Entity: {violation.entity_type} (ID: {violation.entity_id})")
+    print(f"Property: {violation.property_name}")
+    print(f"Message: {violation.message}")
+    print(f"Expected: {violation.expected}")
+    print(f"Actual: {violation.actual}")
+    if violation.suggestion:
+        print(f"Suggestion: {violation.suggestion}")
+```
+
+---
+
+## Quality-Driven Workflows
+
+### Approval Thresholds
+
+Configure quality thresholds for different approval workflows:
+
+```python
+# High-quality data - auto-approve
+if results.overall_score >= 90 and results.violations_by_severity.get('error', 0) == 0:
+    approval = client.approve_quality_results(
+        transform_id="transform-123",
+        approval_comment="High quality - auto approved"
+    )
+
+# Moderate quality - manual review
+elif results.overall_score >= 70:
+    print("Manual review required")
+    # Present violations to user for decision
+
+# Low quality - reject
+else:
+    rejection = client.reject_quality_results(
+        transform_id="transform-123",
+        rejection_reason="Quality too low for production use"
+    )
+```
+
+### Feedback Loop
+
+Quality validation supports continuous improvement through feedback:
+
+1. **Approval with Comments**: Explain acceptance decisions
+2. **Rejection with Reasons**: Detail what needs improvement
+3. **Learning Comments**: Provide context for future processing
+4. **Rule Refinement**: Adjust quality rules based on feedback
+
+---
+
+## Quality Configuration
+
+### Rule Definition in Ontology
+
+Quality rules are defined directly in your ontology YAML:
+
+```yaml
+version: 1
+qualityRules:
+  formatRules:
+    - name: "email_format"
+      description: "Email addresses must be valid"
+      entityType: "Person"
+      propertyName: "email"
+      ruleType: "format"
+      severity: "error"
+      validation:
+        format: "email"
+    
+  businessRules:
+    - name: "company_name_uniqueness"
+      description: "Company names must be unique"
+      entityType: "Company"
+      propertyName: "name"
+      ruleType: "business"
+      severity: "error"
+      validation:
+        unique: true
+
+  completenessRules:
+    - name: "required_properties"
+      description: "All required properties must be present"
+      ruleType: "completeness"
+      severity: "error"
+      entityLevel: true
+```
+
+### Dynamic Rule Application
+
+Quality rules are applied dynamically based on your ontology:
+
+- **Entity-Specific Rules**: Applied only to specific entity types
+- **Property-Specific Rules**: Target individual properties
+- **Global Rules**: Applied across all entities
+- **Conditional Rules**: Applied based on specific conditions
+
+---
+
+## Quality API Usage
+
+### Basic Quality Workflow
+
+```python
+from graphora import GraphoraClient
+from graphora.exceptions import GraphoraAPIError
+
+client = GraphoraClient(base_url="https://api.graphora.io", user_id="user-123")
+
+try:
+    # 1. Get quality results after transformation
+    results = client.get_quality_results("transform-123")
+    
+    # 2. Analyze quality metrics
+    print(f"Quality Score: {results.overall_score:.1f}")
+    print(f"Grade: {results.grade}")
+    
+    # 3. Review violations by severity
+    for severity, count in results.violations_by_severity.items():
+        print(f"{severity}: {count} violations")
+    
+    # 4. Make quality decision
+    if results.requires_review:
+        # Get detailed violations for review
+        violations = client.get_quality_violations(
+            transform_id="transform-123",
+            severity="error"
+        )
+        
+        # Review and decide
+        # ... decision logic ...
+        
+        # Approve or reject
+        if decision == "approve":
+            client.approve_quality_results(
+                transform_id="transform-123",
+                approval_comment="Acceptable quality for production"
+            )
+        else:
+            client.reject_quality_results(
+                transform_id="transform-123",
+                rejection_reason="Too many critical errors"
+            )
+    
+except GraphoraAPIError as e:
+    print(f"Quality validation error: {e}")
+```
+
+### Advanced Quality Analysis
+
+```python
+# Get quality summary for user
+summary = client.get_quality_summary(limit=10)
+for result in summary.recent_quality_results:
+    print(f"Transform: {result['transform_id']}")
+    print(f"Score: {result['overall_score']}")
+    print(f"Status: {result['status']}")
+
+# Filter violations by type and entity
+format_violations = client.get_quality_violations(
+    transform_id="transform-123",
+    violation_type="format",
+    entity_type="Company",
+    limit=50
+)
+
+# Check quality service health
+health = client.get_quality_health()
+if not health.quality_api_available:
+    print("Quality validation service is unavailable")
+```
+
+---
+
+## Best Practices
+
+### Rule Design
+
+1. **Start Simple**: Begin with basic format and required field rules
+2. **Iterate Gradually**: Add business rules based on real data patterns
+3. **Balance Strictness**: Avoid overly restrictive rules that reject good data
+4. **Document Rules**: Provide clear descriptions for all quality rules
+
+### Quality Thresholds
+
+1. **Environment-Specific**: Use different thresholds for staging vs. production
+2. **Data-Type Aware**: Adjust thresholds based on data complexity
+3. **Business Aligned**: Set thresholds that match business requirements
+4. **Monitor Trends**: Track quality improvements over time
+
+### Violation Management
+
+1. **Prioritize Errors**: Always address error-level violations first
+2. **Review Warnings**: Assess warning-level violations for business impact
+3. **Track Patterns**: Identify recurring violation types for rule refinement
+4. **Provide Feedback**: Use detailed feedback to improve future processing
+
+### Continuous Improvement
+
+1. **Regular Review**: Periodically review quality rules and thresholds
+2. **Feedback Analysis**: Analyze approval/rejection patterns
+3. **Rule Optimization**: Refine rules based on real-world usage
+4. **Performance Monitoring**: Track quality validation performance
+
+---
+
+## Integration with Other Concepts
+
+Quality validation integrates seamlessly with other Graphora concepts:
+
+### With Ontology
+- Quality rules are defined in your [ontology](/client/concepts/ontology) YAML
+- Rule enforcement depends on entity and property definitions
+- Schema changes can trigger quality rule updates
+
+### With Transformation
+- Quality validation runs automatically after [transformation](/client/concepts/transformation)
+- Quality results influence transformation retry decisions
+- Poor quality can trigger automatic reprocessing
+
+### With Merging
+- Quality approval is required before [merging](/client/concepts/merging)
+- Quality feedback informs conflict resolution strategies
+- High-quality data reduces merge conflicts
+
+### With Graph Management
+- Quality scores help prioritize [graph](/client/concepts/graph) maintenance
+- Quality trends inform graph evolution decisions
+- Quality violations guide data cleanup efforts
+
+---
+
+## Next Steps
+
+- Learn how to define quality rules in your [ontology](/client/ontology-editor/quality-rules)
+- Explore the complete [Quality API reference](/client/api/client#quality-validation-methods)
+- Review [quality validation examples](/client/examples/transformation#quality-validation)
+- Understand how quality integrates with the [merging process](/client/concepts/merging)
