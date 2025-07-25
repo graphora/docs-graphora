@@ -1,0 +1,901 @@
+---
+title: 'Ontology Examples'
+description: 'Complete ontology examples for different domains and use cases'
+---
+
+# Ontology Examples
+
+This section provides complete, real-world ontology examples that demonstrate different features and patterns. Each example includes entities, relationships, quality rules, and explanations of design decisions.
+
+## Financial Reporting Ontology
+
+A comprehensive ontology for SEC Form 10-K financial documents with quality validation:
+
+<CodeGroup>
+```yaml Financial Reporting Ontology
+version: 1
+
+qualityConfig:
+  overallScoreThreshold: 80
+  maxViolationsPerEntity: 5
+  confidenceThreshold: 0.7
+  distributionRules:
+    maxDuplicateRatio: 0.3
+    minUniqueRatio: 0.1
+
+entities:
+  Metadata:
+    properties:
+      name:
+        type: string
+        description: "Document identifier (e.g., Form13_2023)"
+        required: true
+        quality:
+          format:
+            pattern: "^Form[0-9]+_[0-9]{4}$"
+            caseFormat: "titleCase"
+      type:
+        type: string
+        description: "Document type classification"
+        required: true
+        quality:
+          business:
+            allowedValues: ["financial_report", "annual_report", "quarterly_report"]
+      filingDate:
+        type: string
+        description: "Filing date in YYYY-MM-DD format"
+        required: true
+        quality:
+          format:
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      context:
+        type: string
+        description: "High-level document summary"
+        index: true
+        quality:
+          format:
+            minLength: 10
+            maxLength: 500
+    relationships:
+      ABOUT_COMPANY:
+        target: Company
+        cardinality: manyToOne
+        description: "Document subject company"
+
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Official company legal name"
+        required: true
+        unique: true
+        index: true
+        quality:
+          format:
+            pattern: "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+            minLength: 2
+            maxLength: 100
+            caseFormat: "titleCase"
+          business:
+            forbiddenValues: ["Unknown Company", "N/A", "TBD", ""]
+      cik:
+        type: string
+        description: "SEC Central Index Key (10-digit identifier)"
+        unique: true
+        quality:
+          format:
+            pattern: "^[0-9]{10}$"
+      ticker:
+        type: string
+        description: "Stock exchange ticker symbol"
+        unique: true
+        index: true
+        quality:
+          format:
+            pattern: "^[A-Z]{1,5}$"
+            caseFormat: "upperCase"
+      industry:
+        type: string
+        description: "Primary industry classification"
+        required: true
+        index: true
+        quality:
+          business:
+            allowedValues:
+              - "Technology"
+              - "Healthcare"
+              - "Financial Services"
+              - "Manufacturing"
+              - "Retail"
+              - "Energy"
+              - "Real Estate"
+              - "Utilities"
+              - "Telecommunications"
+    relationships:
+      HAS_BUSINESS:
+        target: Business
+        cardinality: oneToMany
+      HAS_RISK_FACTOR:
+        target: RiskFactor
+        cardinality: oneToMany
+      HAS_LEGAL_PROCEEDING:
+        target: LegalProceeding
+        cardinality: oneToMany
+
+  Business:
+    properties:
+      description:
+        type: string
+        description: "General business description"
+        required: true
+        quality:
+          format:
+            minLength: 20
+            maxLength: 1000
+      employees:
+        type: integer
+        description: "Total number of employees"
+        quality:
+          business:
+            minValue: 1
+            maxValue: 1000000
+      revenue:
+        type: float
+        description: "Annual revenue in millions USD"
+        quality:
+          business:
+            minValue: 0.0
+            maxValue: 1000000.0
+      seasonality:
+        type: string
+        description: "Business seasonality patterns"
+        quality:
+          format:
+            maxLength: 200
+          business:
+            forbiddenValues: ["None", "N/A", "Unknown"]
+    relationships:
+      HAS_SEGMENT:
+        target: BusinessSegment
+        cardinality: oneToMany
+      HAS_PRODUCT:
+        target: Product
+        cardinality: oneToMany
+      COMPETES_WITH:
+        target: Company
+        cardinality: manyToMany
+        properties:
+          market_overlap:
+            type: string
+            description: "Description of competitive overlap"
+
+  RiskFactor:
+    properties:
+      name:
+        type: string
+        description: "Risk factor identifier"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 5
+            maxLength: 100
+            caseFormat: "titleCase"
+          business:
+            forbiddenValues: ["Unknown Risk", "General Risk", "Other"]
+      description:
+        type: string
+        description: "Detailed risk description"
+        required: true
+        quality:
+          format:
+            minLength: 50
+            maxLength: 2000
+      potentialImpact:
+        type: string
+        description: "Potential business impact"
+        quality:
+          business:
+            allowedValues: ["Low", "Medium", "High", "Critical"]
+      mitigationStrategy:
+        type: string
+        description: "Risk mitigation approach"
+        quality:
+          format:
+            minLength: 10
+            maxLength: 500
+
+  BusinessSegment:
+    properties:
+      name:
+        type: string
+        description: "Business segment name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 50
+            caseFormat: "titleCase"
+      revenuePercentage:
+        type: float
+        description: "Percentage of total company revenue"
+        quality:
+          business:
+            minValue: 0.0
+            maxValue: 100.0
+            inclusiveMin: true
+            inclusiveMax: true
+      description:
+        type: string
+        description: "Segment business description"
+        quality:
+          format:
+            minLength: 20
+            maxLength: 500
+
+  Product:
+    properties:
+      name:
+        type: string
+        description: "Product or service name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 100
+            caseFormat: "titleCase"
+      category:
+        type: string
+        description: "Product category"
+        quality:
+          business:
+            allowedValues: ["Software", "Hardware", "Service", "Platform", "Solution"]
+      description:
+        type: string
+        description: "Product description"
+        quality:
+          format:
+            minLength: 10
+            maxLength: 300
+
+  LegalProceeding:
+    properties:
+      caseName:
+        type: string
+        description: "Legal case identifier"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 5
+            maxLength: 200
+      status:
+        type: string
+        description: "Current case status"
+        required: true
+        quality:
+          business:
+            allowedValues: ["Active", "Settled", "Dismissed", "Pending"]
+      description:
+        type: string
+        description: "Case description and potential impact"
+        required: true
+        quality:
+          format:
+            minLength: 20
+            maxLength: 1000
+      potentialLiability:
+        type: float
+        description: "Estimated liability in millions USD"
+        quality:
+          business:
+            minValue: 0.0
+            maxValue: 10000.0
+```
+</CodeGroup>
+
+### Key Features of This Ontology
+
+<AccordionGroup>
+  <Accordion title="Document Structure">
+    - **Metadata entity** captures document-level information
+    - **Filing date validation** ensures proper date format
+    - **Document type constraints** limit to valid financial document types
+  </Accordion>
+  
+  <Accordion title="Company Information">
+    - **CIK validation** enforces 10-digit SEC identifier format
+    - **Ticker symbol** validation for stock exchange symbols
+    - **Industry classification** uses controlled vocabulary
+  </Accordion>
+  
+  <Accordion title="Quality Controls">
+    - **Pattern matching** for structured data (dates, CIK, ticker)
+    - **Business rules** prevent common data quality issues
+    - **Range validation** for numeric fields like revenue and employees
+  </Accordion>
+  
+  <Accordion title="Relationship Modeling">
+    - **Hierarchical structure** from company to business segments
+    - **Many-to-many** competitive relationships
+    - **One-to-many** risk factors and legal proceedings
+  </Accordion>
+</AccordionGroup>
+
+## Technology Company Ontology
+
+Simplified ontology focused on technology companies and their products:
+
+<CodeGroup>
+```yaml Technology Company Ontology
+version: 1
+
+qualityConfig:
+  overallScoreThreshold: 75
+  confidenceThreshold: 0.65
+
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Company name"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 80
+            caseFormat: "titleCase"
+          business:
+            forbiddenValues: ["Unknown", "TBD", "N/A"]
+      website:
+        type: string
+        description: "Company website URL"
+        quality:
+          format:
+            pattern: "^https?://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}.*$"
+      foundedYear:
+        type: integer
+        description: "Year company was founded"
+        quality:
+          business:
+            minValue: 1950
+            maxValue: 2024
+      employeeCount:
+        type: integer
+        description: "Number of employees"
+        quality:
+          business:
+            minValue: 1
+            maxValue: 500000
+      headquarters:
+        type: string
+        description: "Company headquarters location"
+        quality:
+          format:
+            minLength: 5
+            maxLength: 100
+    relationships:
+      DEVELOPS:
+        target: Product
+        cardinality: oneToMany
+      ACQUIRED:
+        target: Company
+        cardinality: oneToMany
+        properties:
+          acquisitionDate:
+            type: string
+            description: "Date of acquisition (YYYY-MM-DD)"
+            quality:
+              format:
+                pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          acquisitionPrice:
+            type: float
+            description: "Acquisition price in millions USD"
+
+  Product:
+    properties:
+      name:
+        type: string
+        description: "Product name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 60
+            caseFormat: "titleCase"
+      category:
+        type: string
+        description: "Product category"
+        required: true
+        quality:
+          business:
+            allowedValues:
+              - "Mobile App"
+              - "Web Application"
+              - "Software Platform"
+              - "API Service"
+              - "Hardware Device"
+              - "Cloud Service"
+              - "Development Tool"
+      launchDate:
+        type: string
+        description: "Product launch date"
+        quality:
+          format:
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      description:
+        type: string
+        description: "Product description"
+        quality:
+          format:
+            minLength: 10
+            maxLength: 300
+      pricingModel:
+        type: string
+        description: "How the product is priced"
+        quality:
+          business:
+            allowedValues:
+              - "Free"
+              - "Freemium"
+              - "Subscription"
+              - "One-time Purchase"
+              - "Usage-based"
+              - "Enterprise License"
+    relationships:
+      INTEGRATES_WITH:
+        target: Product
+        cardinality: manyToMany
+        description: "Product integration relationships"
+      TARGETS:
+        target: Market
+        cardinality: manyToMany
+
+  Market:
+    properties:
+      name:
+        type: string
+        description: "Market segment name"
+        required: true
+        quality:
+          format:
+            minLength: 3
+            maxLength: 50
+            caseFormat: "titleCase"
+      size:
+        type: string
+        description: "Market size description"
+        quality:
+          business:
+            allowedValues: ["Small", "Medium", "Large", "Enterprise"]
+      region:
+        type: string
+        description: "Geographic region"
+        quality:
+          business:
+            allowedValues:
+              - "North America"
+              - "Europe"
+              - "Asia Pacific"
+              - "Latin America"
+              - "Middle East"
+              - "Africa"
+              - "Global"
+
+  Person:
+    properties:
+      name:
+        type: string
+        description: "Person's full name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 60
+            caseFormat: "titleCase"
+      role:
+        type: string
+        description: "Role or title"
+        quality:
+          business:
+            allowedValues:
+              - "CEO"
+              - "CTO"
+              - "CFO"
+              - "VP Engineering"
+              - "VP Product"
+              - "VP Marketing"
+              - "Director"
+              - "Senior Manager"
+              - "Manager"
+              - "Engineer"
+              - "Designer"
+              - "Founder"
+      linkedin:
+        type: string
+        description: "LinkedIn profile URL"
+        quality:
+          format:
+            pattern: "^https://www\\.linkedin\\.com/in/[a-zA-Z0-9-]+/?$"
+    relationships:
+      WORKS_FOR:
+        target: Company
+        cardinality: manyToOne
+        properties:
+          startDate:
+            type: string
+            description: "Employment start date"
+          isCurrent:
+            type: boolean
+            description: "Whether currently employed"
+            required: true
+```
+</CodeGroup>
+
+### Technology Ontology Highlights
+
+- **Web-focused validation**: Website and LinkedIn URL patterns
+- **Product categorization**: Technology-specific product types
+- **Pricing models**: Common SaaS and technology pricing approaches
+- **Market segmentation**: Geographic and size-based market classification
+- **Person-company relationships**: Employment tracking with temporal data
+
+## Healthcare Research Ontology
+
+Ontology designed for medical research documents and clinical data:
+
+<CodeGroup>
+```yaml Healthcare Research Ontology
+version: 1
+
+qualityConfig:
+  overallScoreThreshold: 85  # Higher threshold for medical data
+  confidenceThreshold: 0.8     # Higher confidence required
+
+entities:
+  Study:
+    properties:
+      title:
+        type: string
+        description: "Research study title"
+        required: true
+        quality:
+          format:
+            minLength: 10
+            maxLength: 200
+      studyId:
+        type: string
+        description: "Unique study identifier"
+        unique: true
+        required: true
+        quality:
+          format:
+            pattern: "^[A-Z]{2,4}-[0-9]{4,6}$"
+      phase:
+        type: string
+        description: "Clinical trial phase"
+        quality:
+          business:
+            allowedValues: ["Preclinical", "Phase I", "Phase II", "Phase III", "Phase IV"]
+      status:
+        type: string
+        description: "Current study status"
+        required: true
+        quality:
+          business:
+            allowedValues: ["Planning", "Active", "Completed", "Terminated", "Suspended"]
+      startDate:
+        type: string
+        description: "Study start date"
+        quality:
+          format:
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      participantCount:
+        type: integer
+        description: "Number of study participants"
+        quality:
+          business:
+            minValue: 1
+            maxValue: 100000
+    relationships:
+      INVESTIGATES:
+        target: Condition
+        cardinality: manyToMany
+      TESTS:
+        target: Treatment
+        cardinality: manyToMany
+      CONDUCTED_BY:
+        target: Institution
+        cardinality: manyToOne
+
+  Condition:
+    properties:
+      name:
+        type: string
+        description: "Medical condition name"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 3
+            maxLength: 100
+            caseFormat: "title_case"
+      icdCode:
+        type: string
+        description: "ICD-10 diagnostic code"
+        quality:
+          format:
+            pattern: "^[A-Z][0-9]{2}(\\.[0-9]{1,2})?$"
+      severity:
+        type: string
+        description: "Condition severity level"
+        quality:
+          business:
+            allowedValues: ["Mild", "Moderate", "Severe", "Critical"]
+      prevalence:
+        type: string
+        description: "Condition prevalence"
+        quality:
+          business:
+            allowedValues: ["Rare", "Uncommon", "Common", "Very Common"]
+
+  Treatment:
+    properties:
+      name:
+        type: string
+        description: "Treatment name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 80
+            caseFormat: "titleCase"
+      type:
+        type: string
+        description: "Treatment type"
+        required: true
+        quality:
+          business:
+            allowedValues: ["Drug", "Device", "Procedure", "Therapy", "Surgery"]
+      approvalStatus:
+        type: string
+        description: "Regulatory approval status"
+        quality:
+          business:
+            allowedValues: ["Investigational", "FDA Approved", "EMA Approved", "Withdrawn"]
+      mechanism:
+        type: string
+        description: "Treatment mechanism of action"
+        quality:
+          format:
+            minLength: 10
+            maxLength: 300
+
+  Institution:
+    properties:
+      name:
+        type: string
+        description: "Institution name"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 5
+            maxLength: 100
+            caseFormat: "titleCase"
+      type:
+        type: string
+        description: "Institution type"
+        required: true
+        quality:
+          business:
+            allowedValues: ["Hospital", "University", "Research Center", "Pharmaceutical Company"]
+      country:
+        type: string
+        description: "Institution country"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 50
+      city:
+        type: string
+        description: "Institution city"
+        quality:
+          format:
+            minLength: 2
+            maxLength: 50
+
+  Researcher:
+    properties:
+      name:
+        type: string
+        description: "Researcher full name"
+        required: true
+        quality:
+          format:
+            minLength: 5
+            maxLength: 60
+            caseFormat: "titleCase"
+      degree:
+        type: string
+        description: "Highest degree"
+        quality:
+          business:
+            allowedValues: ["MD", "PhD", "MD PhD", "MS", "MA", "BS", "Other"]
+      specialization:
+        type: string
+        description: "Medical specialization"
+        quality:
+          format:
+            minLength: 3
+            maxLength: 50
+      email:
+        type: string
+        description: "Email address"
+        quality:
+          format:
+            pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+            caseFormat: "lowerCase"
+    relationships:
+      AFFILIATED_WITH:
+        target: Institution
+        cardinality: manyToMany
+        properties:
+          role:
+            type: string
+            description: "Role at institution"
+          startDate:
+            type: string
+            description: "Affiliation start date"
+      LEADS:
+        target: Study
+        cardinality: oneToMany
+```
+</CodeGroup>
+
+### Healthcare Ontology Features
+
+- **Medical coding**: ICD-10 code validation for conditions
+- **Regulatory compliance**: FDA/EMA approval status tracking
+- **Clinical phases**: Standard clinical trial phase terminology
+- **Institutional relationships**: Complex affiliations between researchers and institutions
+- **Higher quality thresholds**: Stricter validation for medical data accuracy
+
+## Simple Blog Content Ontology
+
+A minimal ontology for blog content management:
+
+```yaml
+version: 1
+
+entities:
+  Post:
+    properties:
+      title:
+        type: string
+        description: "Blog post title"
+        required: true
+        quality:
+          format:
+            minLength: 5
+            maxLength: 100
+      slug:
+        type: string
+        description: "URL slug"
+        unique: true
+        quality:
+          format:
+            pattern: "^[a-z0-9-]+$"
+      content:
+        type: string
+        description: "Post content"
+        required: true
+        quality:
+          format:
+            minLength: 100
+      publishedDate:
+        type: string
+        description: "Publication date"
+        quality:
+          format:
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      status:
+        type: string
+        description: "Post status"
+        required: true
+        quality:
+          business:
+            allowedValues: ["Draft", "Published", "Archived"]
+    relationships:
+      WRITTEN_BY:
+        target: Author
+        cardinality: manyToOne
+      HAS_TAG:
+        target: Tag
+        cardinality: manyToMany
+
+  Author:
+    properties:
+      name:
+        type: string
+        description: "Author name"
+        required: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 50
+      email:
+        type: string
+        description: "Author email"
+        unique: true
+        quality:
+          format:
+            pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      bio:
+        type: string
+        description: "Author biography"
+        quality:
+          format:
+            maxLength: 300
+
+  Tag:
+    properties:
+      name:
+        type: string
+        description: "Tag name"
+        required: true
+        unique: true
+        quality:
+          format:
+            minLength: 2
+            maxLength: 30
+            caseFormat: "lowerCase"
+      description:
+        type: string
+        description: "Tag description"
+        quality:
+          format:
+            maxLength: 150
+```
+
+This simple ontology demonstrates:
+- **Content management** basics with posts, authors, and tags
+- **URL slug validation** for SEO-friendly URLs
+- **Status workflow** for content publishing
+- **Many-to-many tagging** system
+
+## Best Practices Demonstrated
+
+Across these examples, notice these patterns:
+
+<CardGroup cols={2}>
+  <Card title="Naming Conventions" icon="tag">
+    - **Entities**: PascalCase (`Company`, `BusinessSegment`)
+    - **Properties**: camelCase (`employeeCount`, `filingDate`)  
+    - **Relationships**: UPPER_CASE (`WORKS_FOR`, `HAS_SUBSIDIARY`)
+  </Card>
+  <Card title="Quality Rules" icon="shield-check">
+    - **Required fields** for critical data
+    - **Pattern validation** for structured data (emails, dates, codes)
+    - **Business rules** to prevent common data quality issues
+  </Card>
+  <Card title="Relationship Design" icon="link">
+    - **Clear cardinality** specifications
+    - **Meaningful relationship names** that read naturally
+    - **Relationship properties** for temporal and contextual data
+  </Card>
+  <Card title="Domain-Specific Rules" icon="building">
+    - **Higher thresholds** for sensitive domains (healthcare: 85%)
+    - **Industry-specific patterns** (CIK codes, ICD codes, ticker symbols)
+    - **Controlled vocabularies** for categorical data
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Test Your Ontology" icon="flask" href="/client/ontology-editor/validation">
+  Learn how to validate and test your ontology with real data
+</Card>

@@ -1,0 +1,176 @@
+---
+title: 'Ontology Editor'
+description: 'Create and manage knowledge graph ontologies with Graphora'
+---
+
+# Ontology Editor
+
+The Graphora Ontology Editor is a powerful tool for defining the structure, validation rules, and quality constraints of your knowledge graphs. It provides a comprehensive YAML-based format for describing entities, relationships, properties, and sophisticated quality validation rules.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="YAML-Based Schema" icon="file-code">
+    Define your ontology using intuitive YAML syntax with full schema validation
+  </Card>
+  <Card title="Quality Rules" icon="shield-check">
+    Built-in quality validation with format rules, business rules, and automated scoring
+  </Card>
+  <Card title="Version Control" icon="git-branch">
+    Track ontology changes with full version history and rollback capabilities
+  </Card>
+  <Card title="Real-time Validation" icon="bolt">
+    Instant feedback on syntax errors and schema violations during editing
+  </Card>
+</CardGroup>
+
+## What You Can Define
+
+### 1. **Entities & Properties**
+Define the core building blocks of your knowledge graph with typed properties, constraints, and descriptions.
+
+```yaml
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Company legal name"
+        required: true
+        unique: true
+      revenue:
+        type: integer
+        description: "Annual revenue in USD"
+```
+
+### 2. **Relationships**
+Specify how entities connect to each other with cardinality constraints and relationship properties.
+
+```yaml
+relationships:
+  ACQUIRED_BY:
+    target: Company
+    cardinality: manyToOne
+    properties:
+      acquisitionDate:
+        type: string
+        description: "Date of acquisition (YYYY-MM-DD)"
+```
+
+### 3. **Quality Rules**
+Enforce data quality with comprehensive validation rules including format constraints, business rules, and automated quality scoring.
+
+```yaml
+quality:
+  format:
+    pattern: "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+    minLength: 2
+    maxLength: 100
+  business:
+    forbiddenValues: ["Unknown", "N/A", "TBD"]
+```
+
+## Ontology Management Workflow
+
+<Steps>
+  <Step title="Design">
+    Plan your ontology structure, identifying key entities, relationships, and business rules
+  </Step>
+  <Step title="Create">
+    Use the YAML editor to define entities, properties, relationships, and quality rules
+  </Step>
+  <Step title="Validate">
+    Leverage real-time validation to ensure syntax correctness and schema compliance
+  </Step>
+  <Step title="Test">
+    Validate your ontology against sample data to ensure it meets your requirements
+  </Step>
+  <Step title="Deploy">
+    Register your ontology and use it for knowledge graph extraction and transformation
+  </Step>
+</Steps>
+
+## Getting Started
+
+The ontology editor supports both simple ontology definitions and complex quality-aware schemas:
+
+### Basic Ontology
+Perfect for getting started with simple entity definitions:
+
+```yaml
+version: 1
+entities:
+  Person:
+    properties:
+      name:
+        type: string
+        required: true
+      age:
+        type: integer
+    relationships:
+      WORKS_FOR:
+        target: Company
+```
+
+### Quality-Aware Ontology  
+Advanced schemas with comprehensive validation rules:
+
+```yaml
+version: 1
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        required: true
+        quality:
+          format:
+            pattern: "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+            minLength: 2
+            maxLength: 100
+          business:
+            forbiddenValues: ["Unknown Company", "N/A", "TBD"]
+```
+
+## Quality Validation System
+
+The ontology editor includes a sophisticated quality validation system that:
+
+- **Scores** extracted data on a 0-100 scale with letter grades (A-F)
+- **Validates** format rules like patterns, length, and case formatting
+- **Enforces** business rules including allowed/forbidden values and ranges
+- **Provides** detailed violation reports with context and suggestions
+- **Enables** auto-approval for high-quality extractions
+
+## API Integration
+
+Ontologies created in the editor integrate seamlessly with the Graphora API:
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(user_id="your-user-id")
+
+# Register your ontology
+ontology_response = client.register_ontology(ontology_yaml)
+
+# Use it for transformation
+transform_response = client.transform_document(
+    file_path="document.pdf",
+    ontology_id=ontology_response.id
+)
+```
+
+## Next Steps
+
+<Card title="Learn the YAML Syntax" icon="code" href="/client/ontology-editor/yaml-syntax">
+  Master the complete YAML syntax for defining entities, properties, and relationships
+</Card>
+
+<Card title="Explore Quality Rules" icon="shield-check" href="/client/ontology-editor/quality-rules">
+  Implement sophisticated quality validation and automated scoring
+</Card>
+
+<Card title="See Examples" icon="book-open" href="/client/ontology-editor/examples">
+  Browse complete ontology examples for different domains and use cases
+</Card>

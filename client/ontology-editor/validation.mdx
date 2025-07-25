@@ -1,0 +1,692 @@
+---
+title: 'Testing & Validation'
+description: 'Test and validate your ontologies to ensure quality and correctness'
+---
+
+# Testing & Validation
+
+Proper testing and validation of your ontology ensures that it works correctly with real data and produces high-quality knowledge graphs. This guide covers validation techniques, testing strategies, and debugging approaches.
+
+## Validation Levels
+
+Graphora provides multiple levels of validation to ensure ontology correctness:
+
+<CardGroup cols={2}>
+  <Card title="Syntax Validation" icon="code">
+    YAML syntax correctness and basic structure validation
+  </Card>
+  <Card title="Schema Validation" icon="shield">
+    Entity references, property types, and relationship integrity
+  </Card>
+  <Card title="Quality Validation" icon="chart-bar">
+    Quality rule testing with sample data and scoring validation
+  </Card>
+  <Card title="Integration Testing" icon="cogs">
+    End-to-end testing with real document transformation
+  </Card>
+</CardGroup>
+
+## Syntax Validation
+
+The first level of validation ensures your YAML is correctly formatted and follows the expected schema.
+
+### Common Syntax Errors
+
+<AccordionGroup>
+  <Accordion title="Invalid YAML Syntax">
+    **Problem**: Malformed YAML structure
+    ```yaml
+    # ❌ Missing colon after property name
+    entities:
+      Company
+        properties:
+          name:
+            type: string
+    ```
+    
+    **Solution**: Proper YAML formatting
+    ```yaml
+    # ✅ Correct syntax
+    entities:
+      Company:
+        properties:
+          name:
+            type: string
+    ```
+  </Accordion>
+  
+  <Accordion title="Missing Required Fields">
+    **Problem**: Missing mandatory sections
+    ```yaml
+    # ❌ Missing version and entities
+    quality_config:
+      overall_score_threshold: 80
+    ```
+    
+    **Solution**: Include all required sections
+    ```yaml
+    # ✅ Complete structure
+    version: 1
+    entities:
+      Company:
+        properties:
+          name:
+            type: string
+            required: true
+    ```
+  </Accordion>
+  
+  <Accordion title="Invalid Property Types">
+    **Problem**: Unsupported property type
+    ```yaml
+    # ❌ Invalid type
+    properties:
+      age:
+        type: number  # Should be 'integer' or 'float'
+    ```
+    
+    **Solution**: Use supported types
+    ```yaml
+    # ✅ Correct type
+    properties:
+      age:
+        type: integer
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Validation API
+
+Use the validation endpoint to check syntax before registration:
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(user_id="your-user-id")
+
+# Validate ontology without registering
+try:
+    validation_result = client.validate_ontology(ontology_yaml)
+    if validation_result.is_valid:
+        print("✅ Ontology syntax is valid")
+    else:
+        print("❌ Validation errors:")
+        for error in validation_result.errors:
+            print(f"  - {error}")
+except Exception as e:
+    print(f"Validation failed: {e}")
+```
+
+## Schema Validation
+
+Schema validation ensures that entity references, relationships, and constraints are logically consistent.
+
+### Reference Integrity
+
+All relationship targets must reference defined entities:
+
+```yaml
+# ❌ Invalid: 'Department' entity not defined
+entities:
+  Person:
+    relationships:
+      WORKS_IN:
+        target: Department  # Error: Department not found
+        
+# ✅ Valid: All referenced entities defined
+entities:
+  Person:
+    relationships:
+      WORKS_IN:
+        target: Department
+  Department:
+    properties:
+      name:
+        type: string
+        required: true
+```
+
+### Constraint Validation
+
+Validate that property constraints are logically consistent:
+
+```yaml
+# ❌ Invalid: Conflicting constraints
+properties:
+  name:
+    type: string
+    required: true
+    quality:
+      format:
+        minLength: 10
+        maxLength: 5  # Error: min > max
+
+# ✅ Valid: Consistent constraints
+properties:
+  name:
+    type: string
+    required: true
+    quality:
+      format:
+        minLength: 2
+        maxLength: 50
+```
+
+### Relationship Cardinality
+
+Ensure cardinality specifications make sense:
+
+```yaml
+# ⚠️ Consider: Does this make sense?
+relationships:
+  HAS_CEO:
+    target: Person
+    cardinality: oneToMany  # Can a company have multiple CEOs?
+    
+# ✅ Better: More logical cardinality
+relationships:
+  HAS_CEO:
+    target: Person
+    cardinality: oneToOne
+```
+
+## Quality Rule Testing
+
+Test your quality rules with sample data to ensure they work as expected.
+
+### Creating Test Data
+
+Prepare test data that covers different scenarios:
+
+```python
+# Test data for quality rule validation
+test_data = {
+    "valid_companies": [
+        {"name": "Apple Inc.", "cik": "0000320193", "industry": "Technology"},
+        {"name": "Microsoft Corporation", "cik": "0000789019", "industry": "Technology"}
+    ],
+    "invalid_companies": [
+        {"name": "apple inc", "cik": "123", "industry": "Tech"},  # Case/length issues
+        {"name": "Unknown Company", "cik": "0000000000", "industry": "Other"},  # Forbidden values
+        {"name": "A", "cik": "12345678901", "industry": ""}  # Length violations
+    ]
+}
+```
+
+### Quality Testing Script
+
+Create a comprehensive test script:
+
+```python
+import yaml
+from graphora import GraphoraClient
+
+def test_quality_rules(ontology_yaml, test_data):
+    """Test quality rules with sample data"""
+    
+    client = GraphoraClient(user_id="test-user")
+    
+    # Register test ontology
+    ontology_response = client.register_ontology(ontology_yaml)
+    ontology_id = ontology_response.id
+    
+    results = {
+        "passed": [],
+        "failed": [],
+        "scores": []
+    }
+    
+    # Test valid data (should pass)
+    for valid_item in test_data["valid_companies"]:
+        try:
+            # Simulate extraction with test data
+            score = simulate_quality_check(ontology_id, valid_item)
+            results["scores"].append(score)
+            
+            if score >= 80:  # Expected threshold
+                results["passed"].append(valid_item["name"])
+            else:
+                results["failed"].append(f"{valid_item['name']}: Score too low ({score})")
+                
+        except Exception as e:
+            results["failed"].append(f"{valid_item['name']}: {e}")
+    
+    # Test invalid data (should fail or have low scores)
+    for invalid_item in test_data["invalid_companies"]:
+        try:
+            score = simulate_quality_check(ontology_id, invalid_item)
+            
+            if score < 60:  # Expected to fail
+                results["passed"].append(f"Correctly rejected: {invalid_item['name']}")
+            else:
+                results["failed"].append(f"Should have failed: {invalid_item['name']} (Score: {score})")
+                
+        except Exception as e:
+            results["passed"].append(f"Correctly rejected: {invalid_item['name']}")
+    
+    return results
+
+def simulate_quality_check(ontology_id, data):
+    """Simulate quality validation for test data"""
+    # This would integrate with your actual quality system
+    # For demonstration, we'll calculate a mock score
+    
+    score = 100
+    
+    # Check format rules
+    if not data["name"].istitle():
+        score -= 10  # Case format violation
+    
+    if len(data["cik"]) != 10:
+        score -= 15  # Length violation
+        
+    if data["name"] in ["Unknown Company", "N/A", "TBD"]:
+        score -= 25  # Forbidden value
+        
+    if not data["industry"]:
+        score -= 20  # Empty required field
+        
+    return max(0, score)
+
+# Run the test
+if __name__ == "__main__":
+    with open("test-ontology.yaml", "r") as f:
+        ontology = f.read()
+        
+    results = test_quality_rules(ontology, test_data)
+    
+    print("Quality Rule Test Results:")
+    print(f"✅ Passed: {len(results['passed'])}")
+    print(f"❌ Failed: {len(results['failed'])}")
+    print(f"📊 Average Score: {sum(results['scores'])/len(results['scores']):.1f}")
+    
+    if results["failed"]:
+        print("\nFailures:")
+        for failure in results["failed"]:
+            print(f"  - {failure}")
+```
+
+## Integration Testing
+
+Test your ontology with real document transformation to ensure end-to-end functionality.
+
+### Document-Based Testing
+
+```python
+def test_ontology_integration(ontology_yaml, test_documents):
+    """Test ontology with real document transformation"""
+    
+    client = GraphoraClient(user_id="test-user")
+    
+    # Register ontology
+    ontology_response = client.register_ontology(ontology_yaml)
+    ontology_id = ontology_response.id
+    
+    test_results = []
+    
+    for doc_path in test_documents:
+        print(f"Testing with document: {doc_path}")
+        
+        try:
+            # Transform document
+            transform_response = client.transform_document(
+                file_path=doc_path,
+                ontology_id=ontology_id,
+                enable_quality_validation=True
+            )
+            
+            # Check results
+            result = {
+                "document": doc_path,
+                "transform_id": transform_response.id,
+                "status": "success",
+                "entities_extracted": len(transform_response.entities or []),
+                "relationships_extracted": len(transform_response.relationships or [])
+            }
+            
+            # Check quality results if available
+            if hasattr(transform_response, 'quality_results') and transform_response.quality_results:
+                result["quality_score"] = transform_response.quality_results.overall_score
+                result["quality_grade"] = transform_response.quality_results.grade
+                result["violations"] = len(transform_response.quality_results.violations)
+            
+            test_results.append(result)
+            
+        except Exception as e:
+            test_results.append({
+                "document": doc_path,
+                "status": "failed",
+                "error": str(e)
+            })
+    
+    return test_results
+
+# Run integration tests
+test_docs = [
+    "sample_10k.pdf",
+    "company_profile.txt", 
+    "financial_report.md"
+]
+
+integration_results = test_ontology_integration(ontology_yaml, test_docs)
+
+# Analyze results
+successful_transforms = [r for r in integration_results if r["status"] == "success"]
+failed_transforms = [r for r in integration_results if r["status"] == "failed"]
+
+print(f"Integration Test Results:")
+print(f"✅ Successful: {len(successful_transforms)}")
+print(f"❌ Failed: {len(failed_transforms)}")
+
+if successful_transforms:
+    avg_entities = sum(r["entities_extracted"] for r in successful_transforms) / len(successful_transforms)
+    avg_relationships = sum(r["relationships_extracted"] for r in successful_transforms) / len(successful_transforms)
+    print(f"📊 Average entities per document: {avg_entities:.1f}")
+    print(f"📊 Average relationships per document: {avg_relationships:.1f}")
+```
+
+## Validation Best Practices
+
+### 1. Comprehensive Test Coverage
+
+Test different types of data and edge cases:
+
+```yaml
+# Test cases to cover
+testScenarios:
+  validData:
+    - "Perfect case: All rules pass"
+    - "Minimum values: Test boundary conditions" 
+    - "Maximum values: Test upper limits"
+  
+  edgeCases:
+    - "Empty strings: Should trigger required field violations"
+    - "Whitespace only: Should be treated as empty"
+    - "Special characters: Test pattern matching"
+    - "Unicode characters: International text support"
+  
+  invalidData:
+    - "Wrong format: Pattern violations"
+    - "Out of range: Numeric constraint violations"
+    - "Forbidden values: Business rule violations"
+    - "Missing required: Completeness violations"
+```
+
+### 2. Iterative Refinement
+
+Use test results to refine your ontology:
+
+```python
+def analyze_quality_results(quality_results):
+    """Analyze quality violations to improve ontology"""
+    
+    violation_patterns = {}
+    
+    for violation in quality_results.violations:
+        rule_type = violation.rule_type
+        property_name = violation.context.get("property")
+        
+        key = f"{rule_type}:{property_name}"
+        if key not in violation_patterns:
+            violation_patterns[key] = 0
+        violation_patterns[key] += 1
+    
+    # Identify most common violations
+    common_violations = sorted(
+        violation_patterns.items(), 
+        key=lambda x: x[1], 
+        reverse=True
+    )
+    
+    print("Most common violations:")
+    for pattern, count in common_violations[:5]:
+        print(f"  {pattern}: {count} occurrences")
+    
+    # Suggest improvements
+    suggestions = []
+    for pattern, count in common_violations:
+        rule_type, property_name = pattern.split(":")
+        if rule_type == "format" and count > 10:
+            suggestions.append(f"Consider relaxing format rules for {property_name}")
+        elif rule_type == "business" and count > 5:
+            suggestions.append(f"Review business rules for {property_name}")
+    
+    return suggestions
+```
+
+### 3. Performance Testing
+
+Monitor ontology performance with large datasets:
+
+```python
+import time
+
+def test_ontology_performance(ontology_id, large_document):
+    """Test ontology performance with large documents"""
+    
+    start_time = time.time()
+    
+    try:
+        transform_response = client.transform_document(
+            file_path=large_document,
+            ontology_id=ontology_id
+        )
+        
+        end_time = time.time()
+        processing_time = end_time - start_time
+        
+        return {
+            "processing_time": processing_time,
+            "entities_per_second": len(transform_response.entities) / processing_time,
+            "relationships_per_second": len(transform_response.relationships) / processing_time,
+            "memory_efficient": processing_time < 300  # 5 minute threshold
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "processing_time": time.time() - start_time
+        }
+```
+
+## Debugging Common Issues
+
+### Quality Score Too Low
+
+**Symptoms**: Consistently low quality scores across different documents
+
+**Debugging Steps**:
+1. **Check violation patterns**: Identify most common rule violations
+2. **Review test data**: Ensure test data matches expected real-world data
+3. **Adjust thresholds**: Consider if quality rules are too strict
+4. **Examine extraction confidence**: Low confidence may indicate ontology-data mismatch
+
+```python
+# Debug quality issues
+def debug_quality_issues(quality_results):
+    print("Quality Debug Information:")
+    print(f"Overall Score: {quality_results.overall_score}")
+    print(f"Grade: {quality_results.grade}")
+    print(f"Violations: {len(quality_results.violations)}")
+    
+    # Group violations by type
+    by_type = {}
+    for violation in quality_results.violations:
+        vtype = violation.rule_type
+        if vtype not in by_type:
+            by_type[vtype] = []
+        by_type[vtype].append(violation)
+    
+    for vtype, violations in by_type.items():
+        print(f"\n{vtype.upper()} Violations ({len(violations)}):")
+        for violation in violations[:3]:  # Show first 3
+            print(f"  - {violation.message}")
+            if hasattr(violation, 'suggestion') and violation.suggestion:
+                print(f"    Suggestion: {violation.suggestion}")
+```
+
+### No Entities Extracted
+
+**Symptoms**: Transformation completes but extracts no entities
+
+**Possible Causes**:
+- Ontology too specific for document content
+- Missing required properties preventing entity creation
+- Document format not supported
+- Extraction confidence threshold too high
+
+**Debugging**:
+```python
+# Check extraction confidence
+def debug_extraction_issues(transform_response):
+    if not transform_response.entities:
+        print("❌ No entities extracted")
+        print("Possible causes:")
+        print("1. Ontology may be too specific for document content")
+        print("2. Required properties may be preventing entity creation") 
+        print("3. Document format may not be properly parsed")
+        print("4. Extraction confidence threshold may be too high")
+        
+        # Check if extraction attempted but failed confidence threshold
+        if hasattr(transform_response, 'extraction_metadata'):
+            metadata = transform_response.extraction_metadata
+            print(f"Attempted extractions: {metadata.get('attempted_entities', 'N/A')}")
+            print(f"Average confidence: {metadata.get('avg_confidence', 'N/A')}")
+```
+
+### Relationship Cardinality Violations
+
+**Symptoms**: Relationships not created due to cardinality constraints
+
+**Debugging**:
+```python
+# Check relationship creation issues
+def debug_relationship_issues(quality_results):
+    relationship_violations = [
+        v for v in quality_results.violations 
+        if v.context.get("violation_type") == "cardinality"
+    ]
+    
+    if relationship_violations:
+        print("Cardinality Violations:")
+        for violation in relationship_violations:
+            rel_name = violation.context.get("relationship")
+            print(f"  - {rel_name}: {violation.message}")
+            print(f"    Consider adjusting cardinality or entity design")
+```
+
+## Automated Testing Pipeline
+
+Set up automated testing for continuous validation:
+
+```python
+# test_ontology.py - Automated test suite
+import unittest
+from graphora import GraphoraClient
+
+class TestOntologyQuality(unittest.TestCase):
+    
+    def setUp(self):
+        self.client = GraphoraClient(user_id="test-user")
+        
+        # Load test ontology
+        with open("ontology.yaml", "r") as f:
+            self.ontology_yaml = f.read()
+            
+        # Register ontology for testing
+        response = self.client.register_ontology(self.ontology_yaml)
+        self.ontology_id = response.id
+    
+    def test_syntax_validation(self):
+        """Test that ontology syntax is valid"""
+        validation_result = self.client.validate_ontology(self.ontology_yaml)
+        self.assertTrue(validation_result.is_valid, 
+                       f"Syntax errors: {validation_result.errors}")
+    
+    def test_quality_rules_valid_data(self):
+        """Test quality rules with valid data"""
+        # Test with known good data
+        test_doc = "test_data/valid_company_profile.pdf"
+        
+        response = self.client.transform_document(
+            file_path=test_doc,
+            ontology_id=self.ontology_id,
+            enable_quality_validation=True
+        )
+        
+        self.assertIsNotNone(response.quality_results)
+        self.assertGreaterEqual(response.quality_results.overall_score, 80)
+        self.assertIn(response.quality_results.grade, ["A", "B"])
+    
+    def test_quality_rules_invalid_data(self):
+        """Test quality rules with invalid data"""
+        # Test with known problematic data
+        test_doc = "test_data/invalid_company_profile.pdf"
+        
+        response = self.client.transform_document(
+            file_path=test_doc,
+            ontology_id=self.ontology_id,
+            enable_quality_validation=True
+        )
+        
+        self.assertIsNotNone(response.quality_results)
+        self.assertLess(response.quality_results.overall_score, 70)
+        self.assertGreater(len(response.quality_results.violations), 0)
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Run tests with: `python -m unittest test_ontology.py`
+
+## Validation Checklist
+
+Before deploying your ontology to production:
+
+<Steps>
+  <Step title="Syntax Validation">
+    ✅ YAML syntax is correct  
+    ✅ All required fields present  
+    ✅ Property types are supported  
+    ✅ No structural errors
+  </Step>
+  
+  <Step title="Schema Validation">
+    ✅ All relationship targets reference defined entities  
+    ✅ Property constraints are logically consistent  
+    ✅ Cardinality specifications make sense  
+    ✅ No circular references in required properties
+  </Step>
+  
+  <Step title="Quality Rule Testing">
+    ✅ Quality rules tested with valid data  
+    ✅ Quality rules tested with invalid data  
+    ✅ Thresholds appropriate for use case  
+    ✅ Common violations identified and addressed
+  </Step>
+  
+  <Step title="Integration Testing">
+    ✅ End-to-end testing with real documents  
+    ✅ Performance acceptable for expected load  
+    ✅ Error handling works correctly  
+    ✅ Results meet business requirements
+  </Step>
+  
+  <Step title="Documentation">
+    ✅ Ontology design decisions documented  
+    ✅ Test cases and results recorded  
+    ✅ Known limitations identified  
+    ✅ Maintenance procedures established
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deploy to Production" icon="rocket" href="/client/concepts/transformation">
+    Learn how to use your validated ontology for document transformation
+  </Card>
+  <Card title="Monitor Quality" icon="chart-line" href="/client/concepts/merging">
+    Set up ongoing quality monitoring and improvement processes
+  </Card>
+</CardGroup>

@@ -1,0 +1,546 @@
+---
+title: 'Quality Rules & Validation'
+description: 'Implement sophisticated quality validation and automated scoring in your ontologies'
+---
+
+# Quality Rules & Validation
+
+Graphora's quality validation system provides comprehensive data quality enforcement through format rules, business rules, and automated scoring. This ensures that extracted data meets your standards before being merged into your knowledge graph.
+
+## Quality System Overview
+
+The quality validation system operates on multiple levels:
+
+<CardGroup cols={2}>
+  <Card title="Format Rules" icon="text-size">
+    Pattern matching, length constraints, and case formatting validation
+  </Card>
+  <Card title="Business Rules" icon="briefcase">
+    Domain-specific validation including allowed/forbidden values and ranges
+  </Card>
+  <Card title="Automated Scoring" icon="chart-bar">
+    0-100 scale scoring with letter grades (A-F) and auto-approval logic
+  </Card>
+  <Card title="Violation Reporting" icon="exclamation-triangle">
+    Detailed reports with context, suggestions, and confidence scores
+  </Card>
+</CardGroup>
+
+## Adding Quality Rules to Properties
+
+Quality rules are defined within property definitions using the `quality` section:
+
+```yaml
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Company legal name"
+        required: true
+        quality:                    # Quality rules section
+          format:                   # Format validation rules
+            pattern: "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+            minLength: 2
+            maxLength: 100
+            caseFormat: "titleCase"
+          business:                 # Business validation rules
+            forbiddenValues: ["Unknown Company", "N/A", "TBD", ""]
+            allowedValues: null    # Optional whitelist
+```
+
+## Format Rules
+
+Format rules validate the structure and formatting of text data.
+
+### Pattern Validation
+
+Use regular expressions to enforce specific formats:
+
+```yaml
+properties:
+  email:
+    type: string
+    quality:
+      format:
+        pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+        
+  phone:
+    type: string
+    quality:
+      format:
+        pattern: "^\\+?1?[-.\\s]?\\(?[0-9]{3}\\)?[-.\\s]?[0-9]{3}[-.\\s]?[0-9]{4}$"
+        
+  cik:
+    type: string
+    quality:
+      format:
+        pattern: "^[0-9]{10}$"   # Exactly 10 digits
+```
+
+<Tip>
+Use double backslashes (`\\`) to escape special regex characters in YAML strings.
+</Tip>
+
+### Length Constraints
+
+Enforce minimum and maximum character limits:
+
+```yaml
+properties:
+  companyName:
+    type: string
+    quality:
+      format:
+        minLength: 2           # At least 2 characters
+        maxLength: 100         # No more than 100 characters
+        
+  description:
+    type: string
+    quality:
+      format:
+        minLength: 10          # Meaningful descriptions
+        maxLength: 500         # Prevent excessive length
+```
+
+### Case Format Validation
+
+Enforce consistent text casing:
+
+<AccordionGroup>
+  <Accordion title="titleCase">
+    First Letter Of Each Word Capitalized
+    ```yaml
+    companyName:
+      type: string
+      quality:
+        format:
+          caseFormat: "titleCase"
+    ```
+  </Accordion>
+  
+  <Accordion title="upperCase">
+    ALL LETTERS UPPERCASE
+    ```yaml
+    countryCode:
+      type: string
+      quality:
+        format:
+          caseFormat: "upperCase"
+    ```
+  </Accordion>
+  
+  <Accordion title="lowerCase">
+    all letters lowercase
+    ```yaml
+    email:
+      type: string
+      quality:
+        format:
+          caseFormat: "lowerCase"
+    ```
+  </Accordion>
+  
+  <Accordion title="sentenceCase">
+    First letter capitalized, rest lowercase
+    ```yaml
+    description:
+      type: string
+      quality:
+        format:
+          caseFormat: "sentenceCase"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Business Rules
+
+Business rules enforce domain-specific constraints and data validity.
+
+### Forbidden Values
+
+Prevent specific values that indicate poor data quality:
+
+```yaml
+properties:
+  companyName:
+    type: string
+    quality:
+      business:
+        forbiddenValues: 
+          - "Unknown Company"
+          - "N/A"
+          - "TBD"
+          - "Not Available"
+          - ""
+          - "NULL"
+          
+  industry:
+    type: string
+    quality:
+      business:
+        forbiddenValues:
+          - "Unknown"
+          - "Other"
+          - "Miscellaneous"
+```
+
+### Allowed Values (Whitelist)
+
+Restrict values to a predefined set:
+
+```yaml
+properties:
+  companyStatus:
+    type: string
+    quality:
+      business:
+        allowedValues:
+          - "Active"
+          - "Inactive"
+          - "Suspended"
+          - "Dissolved"
+          
+  country:
+    type: string
+    quality:
+      business:
+        allowedValues:
+          - "United States"
+          - "Canada"
+          - "United Kingdom"
+          - "Germany"
+          - "France"
+```
+
+### Numeric Range Validation
+
+For integer and float properties, enforce value ranges:
+
+```yaml
+properties:
+  employeeCount:
+    type: integer
+    quality:
+      business:
+        minValue: 1            # At least 1 employee
+        maxValue: 1000000      # Reasonable upper bound
+        
+  revenue:
+    type: float
+    quality:
+      business:
+        minValue: 0.0          # Non-negative revenue
+        maxValue: 1000000.0    # Billions in millions
+        
+  ownershipPercentage:
+    type: float
+    quality:
+      business:
+        minValue: 0.0
+        maxValue: 100.0
+        inclusiveMin: true     # Include 0%
+        inclusiveMax: true     # Include 100%
+```
+
+#### Range Inclusivity
+
+Control whether boundary values are included:
+
+```yaml
+properties:
+  age:
+    type: integer
+    quality:
+      business:
+        minValue: 0
+        maxValue: 150
+        inclusiveMin: true     # 0 is valid
+        inclusiveMax: false    # 150 is not valid (149 max)
+```
+
+## Global Quality Configuration
+
+Define global quality settings that apply to the entire ontology:
+
+```yaml
+version: 1
+
+# Global quality configuration
+qualityConfig:
+  overallScoreThreshold: 80     # Minimum score for auto-approval
+  maxViolationsPerEntity: 5     # Maximum violations before failure
+  confidenceThreshold: 0.7      # Minimum extraction confidence
+  
+  # Distribution-based validation
+  distributionRules:
+    maxDuplicateRatio: 0.3      # Max 30% duplicate values
+    minUniqueRatio: 0.1         # Min 10% unique values
+    
+entities:
+  # ... entity definitions
+```
+
+### Quality Thresholds
+
+Configure when data requires manual review:
+
+```yaml
+qualityConfig:
+  scoring:
+    autoApproveThreshold: 90    # Score >= 90: auto-approve
+    manualReviewThreshold: 70   # Score 70-89: manual review
+    autoRejectThreshold: 50     # Score < 50: auto-reject
+    
+  violationLimits:
+    maxErrors: 0                 # No critical errors allowed
+    maxWarnings: 5               # Up to 5 warnings acceptable
+    maxTotalViolations: 10       # Overall violation limit
+```
+
+## Complete Quality-Aware Example
+
+Here's a comprehensive example showing all quality rule types:
+
+```yaml
+version: 1
+
+qualityConfig:
+  overallScoreThreshold: 80
+  maxViolationsPerEntity: 5
+  confidenceThreshold: 0.7
+
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Official company legal name"
+        required: true
+        unique: true
+        quality:
+          format:
+            pattern: "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+            minLength: 2
+            maxLength: 100
+            caseFormat: "titleCase"
+          business:
+            forbiddenValues: ["Unknown Company", "N/A", "TBD", ""]
+            
+      cik:
+        type: string
+        description: "SEC Central Index Key"
+        unique: true
+        quality:
+          format:
+            pattern: "^[0-9]{10}$"
+            
+      industry:
+        type: string
+        description: "Primary industry classification"
+        required: true
+        quality:
+          business:
+            allowedValues:
+              - "Technology"
+              - "Healthcare"
+              - "Financial Services"
+              - "Manufacturing"
+              - "Retail"
+              - "Energy"
+              - "Real Estate"
+              
+      employeeCount:
+        type: integer
+        description: "Total number of employees"
+        quality:
+          business:
+            minValue: 1
+            maxValue: 1000000
+            
+      revenue:
+        type: float
+        description: "Annual revenue in millions USD"
+        quality:
+          business:
+            minValue: 0.0
+            maxValue: 1000000.0
+            
+      foundedYear:
+        type: integer
+        description: "Year company was founded"
+        quality:
+          business:
+            minValue: 1800
+            maxValue: 2024
+            
+    relationships:
+      HAS_SUBSIDIARY:
+        target: Company
+        cardinality: oneToMany
+        properties:
+          ownershipPercentage:
+            type: float
+            description: "Percentage ownership"
+            required: true
+            quality:
+              business:
+                minValue: 0.0
+                maxValue: 100.0
+                inclusiveMin: true
+                inclusiveMax: true
+```
+
+## Quality Scoring System
+
+The quality system automatically scores extracted data:
+
+### Scoring Algorithm
+
+- **Base Score**: Starts at 100 points
+- **Format Violations**: -5 to -15 points each (based on severity)
+- **Business Rule Violations**: -10 to -25 points each  
+- **Missing Required Properties**: -20 points each
+- **Low Confidence Extractions**: -5 to -10 points each
+
+### Letter Grades
+
+<AccordionGroup>
+  <Accordion title="Grade A (90-100)">
+    **Excellent Quality**
+    - Minimal or no violations
+    - High extraction confidence
+    - Auto-approval eligible
+    ```yaml
+    # Example: Score 95/100, Grade A
+    overall_score: 95
+    grade: "A"
+    auto_approve: true
+    ```
+  </Accordion>
+  
+  <Accordion title="Grade B (80-89)">
+    **Good Quality**
+    - Minor violations only
+    - Generally acceptable for production
+    - May require brief review
+    ```yaml
+    # Example: Score 85/100, Grade B  
+    overall_score: 85
+    grade: "B"
+    requires_review: false
+    ```
+  </Accordion>
+  
+  <Accordion title="Grade C (70-79)">
+    **Acceptable Quality**
+    - Some quality issues present
+    - Manual review recommended
+    - Fixable violations
+    ```yaml
+    # Example: Score 75/100, Grade C
+    overall_score: 75
+    grade: "C" 
+    requires_review: true
+    ```
+  </Accordion>
+  
+  <Accordion title="Grade D (60-69)">
+    **Poor Quality**
+    - Significant quality issues
+    - Manual review required
+    - Consider re-extraction
+    ```yaml
+    # Example: Score 65/100, Grade D
+    overall_score: 65
+    grade: "D"
+    requires_review: true
+    ```
+  </Accordion>
+  
+  <Accordion title="Grade F (0-59)">
+    **Failed Quality**
+    - Critical quality failures
+    - Not suitable for production
+    - Re-extraction strongly recommended
+    ```yaml
+    # Example: Score 45/100, Grade F
+    overall_score: 45
+    grade: "F"
+    requires_review: true
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Violation Reporting
+
+Quality violations include detailed context and suggestions:
+
+```json
+{
+  "rule_type": "format",
+  "rule_name": "pattern",
+  "severity": "error",
+  "message": "Company name 'acme corp' does not match required pattern",
+  "context": {
+    "entity_type": "Company", 
+    "property": "name",
+    "extracted_value": "acme corp",
+    "expected_pattern": "^[A-Z][a-zA-Z0-9\\s&.,-]+$"
+  },
+  "suggestion": "Capitalize first letter: 'Acme Corp'",
+  "confidence": 0.85
+}
+```
+
+## Best Practices
+
+<Tip>
+**Start with Essential Rules**: Begin with basic format and business rules, then add more sophisticated validation as needed.
+</Tip>
+
+<Tip>
+**Test with Real Data**: Validate your quality rules against sample extractions to ensure they're not too restrictive.
+</Tip>
+
+<Warning>
+**Avoid Over-Constraining**: Too many strict rules can result in excessive false positives and manual review overhead.
+</Warning>
+
+<Tip>
+**Use Meaningful Thresholds**: Set quality thresholds based on your specific use case and tolerance for data imperfection.
+</Tip>
+
+## API Integration
+
+Quality-validated ontologies work seamlessly with the extraction pipeline:
+
+```python
+# Transform with quality validation
+response = client.transform_document(
+    file_path="document.pdf",
+    ontology_id=ontology_id,
+    enable_quality_validation=True  # Enable quality checking
+)
+
+# Check quality results
+if response.quality_results:
+    print(f"Quality Score: {response.quality_results.overall_score}")
+    print(f"Grade: {response.quality_results.grade}")
+    
+    if response.quality_results.requires_review:
+        print("Manual review required")
+        for violation in response.quality_results.violations:
+            print(f"- {violation.message}")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="See Examples" icon="book-open" href="/client/ontology-editor/examples">
+    Browse complete quality-aware ontology examples
+  </Card>
+  <Card title="Validation Testing" icon="flask" href="/client/ontology-editor/validation">
+    Learn how to test and validate your quality rules
+  </Card>
+</CardGroup>

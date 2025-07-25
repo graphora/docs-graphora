@@ -43,6 +43,16 @@
             ]
           },
           {
+            "group": "Ontology Editor",
+            "pages": [
+              "client/ontology-editor/introduction",
+              "client/ontology-editor/yaml-syntax",
+              "client/ontology-editor/quality-rules",
+              "client/ontology-editor/examples",
+              "client/ontology-editor/validation"
+            ]
+          },
+          {
             "group": "API Reference",
             "pages": [
               "client/api/client",

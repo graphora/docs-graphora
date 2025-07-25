@@ -1,0 +1,493 @@
+---
+title: 'YAML Syntax Reference'
+description: 'Complete reference for Graphora ontology YAML syntax'
+---
+
+# YAML Syntax Reference
+
+This guide provides a comprehensive reference for the YAML syntax used to define ontologies in Graphora. The syntax is designed to be intuitive while supporting advanced features like quality rules and complex relationships.
+
+## Basic Structure
+
+Every Graphora ontology follows this basic structure:
+
+```yaml
+version: 1                    # Ontology version (required)
+entities:                     # Entity definitions (required)
+  EntityName:                 # Entity name (PascalCase recommended)
+    properties:               # Entity properties (optional)
+      propertyName:           # Property definitions
+        type: string          # Property type (required)
+        # ... additional property options
+    relationships:            # Entity relationships (optional)
+      RELATIONSHIP_NAME:      # Relationship name (UPPER_CASE recommended)
+        target: TargetEntity  # Target entity (required)
+        # ... additional relationship options
+```
+
+## Version Declaration
+
+All ontologies must start with a version declaration:
+
+```yaml
+version: 1
+```
+
+<Note>
+Currently, only version 1 is supported. This field is required for future compatibility.
+</Note>
+
+## Entity Definitions
+
+Entities are the core building blocks of your ontology. Each entity represents a type of object in your domain.
+
+### Entity Naming
+
+- Use **PascalCase** for entity names (e.g., `Company`, `BusinessSegment`)
+- Choose descriptive, singular nouns
+- Avoid abbreviations unless they're widely understood
+
+```yaml
+entities:
+  Company:           # ✅ Good: Clear, singular, PascalCase
+    # ...
+  BusinessSegment:   # ✅ Good: Descriptive compound name
+    # ...
+  Org:              # ⚠️ Avoid: Abbreviation unclear
+    # ...
+```
+
+## Property Definitions
+
+Properties define the attributes that entities can have. Each property has a type and optional constraints.
+
+### Property Types
+
+Graphora supports the following property types:
+
+<AccordionGroup>
+  <Accordion title="string">
+    Text data of any length
+    ```yaml
+    name:
+      type: string
+      description: "Company legal name"
+    ```
+  </Accordion>
+  
+  <Accordion title="integer">
+    Whole numbers (positive, negative, or zero)
+    ```yaml
+    employeeCount:
+      type: integer
+      description: "Number of full-time employees"
+    ```
+  </Accordion>
+  
+  <Accordion title="float">
+    Decimal numbers
+    ```yaml
+    revenue:
+      type: float
+      description: "Annual revenue in millions USD"
+    ```
+  </Accordion>
+  
+  <Accordion title="boolean">
+    True or false values
+    ```yaml
+    isPublic:
+      type: boolean
+      description: "Whether the company is publicly traded"
+    ```
+  </Accordion>
+  
+  <Accordion title="date">
+    Date values in YYYY-MM-DD format
+    ```yaml
+    founded_date:
+      type: date
+      description: "Company founding date"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Property Constraints
+
+Properties can have various constraints to ensure data quality:
+
+#### Required Properties
+
+```yaml
+name:
+  type: string
+  description: "Company legal name"
+  required: true        # Property must have a non-null, non-empty value
+```
+
+#### Unique Properties
+
+```yaml
+cik:
+  type: string
+  description: "SEC Central Index Key"
+  unique: true          # Property value must be unique across all entities
+```
+
+#### Indexed Properties
+
+```yaml
+industry:
+  type: string
+  description: "Primary industry classification"
+  index: true           # Property will be indexed for fast searching
+```
+
+#### Combined Constraints
+
+```yaml
+ticker:
+  type: string
+  description: "Stock exchange ticker symbol"
+  required: true        # Must have a value
+  unique: true          # Must be unique
+  index: true           # Will be indexed
+```
+
+### Complete Property Example
+
+```yaml
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Official company name"
+        required: true
+        unique: true
+        index: true
+      cik:
+        type: string
+        description: "SEC Central Index Key (10-digit identifier)"
+        unique: true
+      employeeCount:
+        type: integer
+        description: "Total number of employees"
+      revenue:
+        type: float
+        description: "Annual revenue in millions USD"
+      isPublic:
+        type: boolean
+        description: "Whether company is publicly traded"
+      foundedDate:
+        type: date
+        description: "Date company was founded (YYYY-MM-DD)"
+```
+
+## Relationship Definitions
+
+Relationships define how entities connect to each other in your knowledge graph.
+
+### Relationship Naming
+
+- Use **UPPER_CASE** with underscores (e.g., `WORKS_FOR`, `HAS_SUBSIDIARY`)
+- Choose descriptive verb phrases
+- Consider the direction: relationships are directional from source to target
+
+```yaml
+relationships:
+  WORKS_FOR:           # ✅ Good: Clear verb phrase
+    target: Company
+  HAS_SUBSIDIARY:      # ✅ Good: Descriptive relationship
+    target: Company
+  REL_TO:             # ⚠️ Avoid: Unclear abbreviation
+    target: Entity
+```
+
+### Basic Relationships
+
+```yaml
+entities:
+  Person:
+    relationships:
+      WORKS_FOR:
+        target: Company               # Target entity type
+        description: "Employment relationship"  # Optional description
+```
+
+### Cardinality Constraints
+
+Specify how many entities can be connected through a relationship:
+
+<AccordionGroup>
+  <Accordion title="oneToOne">
+    Each source entity connects to exactly one target entity
+    ```yaml
+    HAS_CEO:
+      target: Person
+      cardinality: oneToOne
+    ```
+  </Accordion>
+
+  <Accordion title="oneToMany">
+    Each source entity can connect to multiple target entities
+    ```yaml
+    HAS_EMPLOYEE:
+      target: Person
+      cardinality: oneToMany
+    ```
+  </Accordion>
+
+  <Accordion title="manyToOne">
+    Multiple source entities can connect to the same target entity
+    ```yaml
+    WORKS_FOR:
+      target: Company
+      cardinality: manyToOne
+    ```
+  </Accordion>
+
+  <Accordion title="manyToMany">
+    Multiple source entities can connect to multiple target entities
+    ```yaml
+    COMPETES_WITH:
+      target: Company
+      cardinality: manyToMany
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Relationship Properties
+```yaml
+entities:
+  Person:
+    relationships:
+      WORKS_FOR:
+        target: Company
+        cardinality: manyToOne
+
+Relationships can have their own properties to store additional information about the connection:
+
+```yaml
+entities:
+  Person:
+    relationships:
+      WORKS_FOR:
+        target: Company
+        cardinality: manyToOne
+        properties:
+          startDate:
+            type: date
+            description: "Employment start date"
+            required: true
+          position:
+            type: string
+            description: "Job title or position"
+          salary:
+            type: float
+            description: "Annual salary in USD"
+          isActive:
+            type: boolean
+            description: "Whether employment is currently active"
+            required: true
+```
+
+### Self-Referencing Relationships
+
+Entities can have relationships to themselves:
+
+```yaml
+entities:
+  Company:
+    relationships:
+      HAS_SUBSIDIARY:
+        target: Company          # Self-reference
+        cardinality: oneToMany
+        description: "Parent-subsidiary relationship"
+        properties:
+          ownershipPercentage:
+            type: float
+            description: "Percentage ownership (0-100)"
+          acquisitionDate:
+            type: date
+            description: "Date subsidiary was acquired"
+```
+
+## Advanced Features
+
+### Multi-Target Relationships
+
+While not directly supported in the syntax, you can model complex relationships using intermediate entities:
+
+```yaml
+entities:
+  Person:
+    relationships:
+      HAS_ROLE:
+        target: Role
+        cardinality: oneToMany
+
+  Role:
+    properties:
+      title:
+        type: string
+        required: true
+    relationships:
+      AT_COMPANY:
+        target: Company
+        cardinality: manyToOne
+      IN_DEPARTMENT:
+        target: Department
+        cardinality: manyToOne
+```
+
+### Conditional Properties
+
+Use descriptions to document business rules that should be enforced:
+
+```yaml
+entities:
+  Company:
+    properties:
+      ticker:
+        type: string
+        description: "Stock ticker symbol (required only if isPublic is true)"
+      marketCap:
+        type: float
+        description: "Market capitalization in USD (public companies only)"
+```
+
+## Complete Syntax Example
+
+Here's a comprehensive example showcasing all syntax features:
+
+```yaml
+version: 1
+
+entities:
+  Company:
+    properties:
+      name:
+        type: string
+        description: "Official company legal name"
+        required: true
+        unique: true
+        index: true
+      cik:
+        type: string
+        description: "SEC Central Index Key (10-digit identifier)"
+        unique: true
+      ticker:
+        type: string
+        description: "Stock exchange ticker symbol"
+        unique: true
+        index: true
+      industry:
+        type: string
+        description: "Primary industry classification"
+        required: true
+        index: true
+      employeeCount:
+        type: integer
+        description: "Total number of full-time employees"
+      revenue:
+        type: float
+        description: "Annual revenue in millions USD"
+      isPublic:
+        type: boolean
+        description: "Whether company is publicly traded"
+        required: true
+      foundedDate:
+        type: date
+        description: "Date company was founded"
+    
+    relationships:
+      HAS_SUBSIDIARY:
+        target: Company
+        cardinality: oneToMany
+        description: "Parent company to subsidiary relationship"
+        properties:
+          ownershipPercentage:
+            type: float
+            description: "Percentage ownership (0-100)"
+            required: true
+          acquisitionDate:
+            type: date
+            description: "Date subsidiary was acquired"
+      
+      HAS_EMPLOYEE:
+        target: Person
+        cardinality: oneToMany
+        description: "Company employment relationships"
+      
+      COMPETES_WITH:
+        target: Company
+        cardinality: manyToMany
+        description: "Competitive relationships between companies"
+        properties:
+          marketOverlap:
+            type: string
+            description: "Description of overlapping markets"
+
+  Person:
+    properties:
+      name:
+        type: string
+        description: "Full legal name"
+        required: true
+        index: true
+      email:
+        type: string
+        description: "Primary email address"
+        unique: true
+      birthDate:
+        type: date
+        description: "Date of birth"
+    
+    relationships:
+      WORKS_FOR:
+        target: Company
+        cardinality: manyToOne
+        description: "Current or past employment"
+        properties:
+          position:
+            type: string
+            description: "Job title or role"
+            required: true
+          startDate:
+            type: date
+            description: "Employment start date"
+            required: true
+          endDate:
+            type: date
+            description: "Employment end date (null if current)"
+          isCurrent:
+            type: boolean
+            description: "Whether this is current employment"
+            required: true
+```
+
+## Validation Rules
+
+The YAML syntax is validated for:
+
+- **Syntax correctness**: Valid YAML format
+- **Required fields**: Version, entities with proper structure
+- **Type validity**: Supported property types only
+- **Reference integrity**: Relationship targets must reference defined entities
+- **Naming conventions**: Entity and relationship names follow recommended patterns
+
+<Warning>
+Invalid YAML syntax or missing required fields will prevent ontology registration. Use the real-time validation in the editor to catch errors early.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quality Rules" icon="shield-check" href="/client/ontology-editor/quality-rules">
+    Learn how to add sophisticated quality validation to your ontology
+  </Card>
+  <Card title="Examples" icon="book-open" href="/client/ontology-editor/examples">
+    Explore complete ontology examples for different domains
+  </Card>
+</CardGroup>
