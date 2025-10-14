@@ -55,13 +55,13 @@ pip install graphora
 Here's a simple example of using the Graphora client library to upload an ontology and transform documents:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize client with user ID (required)
+# Initialize client with a Clerk bearer token
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required: User ID for all API calls
-    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Register an ontology

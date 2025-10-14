@@ -169,7 +169,7 @@ When working with environment variables, consider these best practices:
    
    api_key = os.environ.get("GRAPHORA_API_KEY", "")
    if not api_key:
-       print("Warning: No API key provided")
+       print("Warning: No bearer token provided")
    ```
 
 2. **Use Environment Files**: Consider using `.env` files for local development

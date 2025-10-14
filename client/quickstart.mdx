@@ -17,41 +17,31 @@ pip install graphora
 
 ## Authentication
 
-To use the Graphora API, you'll need an API key and a user ID. The user ID is required to scope all API operations to your account. You can provide these credentials in several ways:
+Graphora APIs are protected by Clerk. Every request must include a Clerk-issued bearer token (JWT) in the `Authorization` header.
 
 <CodeGroup>
 ```python Direct initialization
+import os
 from graphora import GraphoraClient
 
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 ```
 
-```python Environment variables
-# Set the environment variables
-# export GRAPHORA_USER_ID="your-user-id"
-# export GRAPHORA_API_KEY="your-api-key"
+```bash Environment variable
+# export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
+```
 
+```python Late binding
 from graphora import GraphoraClient
 
 client = GraphoraClient(base_url="https://api.graphora.io")
 ```
-
-```python Mixed approach
-# Set API key as environment variable
-# export GRAPHORA_API_KEY="your-api-key"
-
-from graphora import GraphoraClient
-
-client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id"  # user_id provided directly
-)
-```
 </CodeGroup>
+
+The client stores the token and automatically applies the correct `Authorization: Bearer <token>` header. The legacy `GRAPHORA_API_KEY` variable is deprecated and will be removed in a future release.
 
 ## Basic Workflow
 
@@ -72,11 +62,10 @@ An ontology defines the structure of your knowledge graph, including entity type
 ```python
 from graphora import GraphoraClient
 
-# Initialize client with user ID (required)
+# Initialize client with a bearer token
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Load ontology from a file
@@ -190,14 +179,14 @@ print(f"Merged graph has {len(merged_graph.nodes)} nodes and {len(merged_graph.e
 Here's a complete example that ties all these steps together:
 
 ```python
-from graphora import GraphoraClient
+import os
 import time
+from graphora import GraphoraClient
 
-# Initialize client with user ID (required)
+# Initialize client with a bearer token
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required: User ID for all API calls
-    api_key="your-api-key"   # Or set GRAPHORA_API_KEY environment variable
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Load and upload ontology

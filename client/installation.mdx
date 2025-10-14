@@ -59,45 +59,27 @@ This should print the version number of the installed library.
 
 The Graphora client library uses environment variables for configuration. You can set these variables in your environment or provide them directly when initializing the client.
 
-### Required: User ID
+### Required: Bearer token
 
-All API calls require a user ID to scope the operations to your account. You can set it as an environment variable:
+All API calls require a Clerk-issued bearer token. Export it before making requests:
 
 ```bash
-export GRAPHORA_USER_ID="your-user-id"
+export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
 ```
 
 Or provide it directly when initializing the client:
 
 ```python
+import os
 from graphora import GraphoraClient
 
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 ```
 
-### API key
-
-You'll need an API key to authenticate with the Graphora API. You can set it as an environment variable:
-
-```bash
-export GRAPHORA_API_KEY="your-api-key"
-```
-
-Or provide it directly when initializing the client:
-
-```python
-from graphora import GraphoraClient
-
-client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",
-    api_key="your-api-key"
-)
-```
+Passing `user_id` is optional and only used for local context; the backend derives identity from the JWT `sub` claim.
 
 ### API URL
 
@@ -114,7 +96,6 @@ from graphora import GraphoraClient
 
 client = GraphoraClient(
     base_url="https://api.graphora.io",
-    user_id="your-user-id"
 )
 ```
 
@@ -124,8 +105,7 @@ Here's a complete example of setting up your environment:
 
 ```bash
 # Required
-export GRAPHORA_USER_ID="your-user-id"
-export GRAPHORA_API_KEY="your-api-key"
+export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
 
 # Optional
 export GRAPHORA_API_URL="https://api.graphora.io"

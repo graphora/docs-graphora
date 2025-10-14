@@ -17,16 +17,16 @@ https://api.graphora.io/api/v1
 
 ## Authentication
 
-The Graphora API uses API keys for authentication. You can obtain an API key from the [Graphora Dashboard](https://app.graphora.io/settings/api-keys).
-
-To authenticate your requests, include your API key in the `Authorization` header:
+Graphora relies on Clerk for authentication and session management. Every request must include a valid Clerk JWT in the `Authorization` header:
 
 ```
-Authorization: Bearer YOUR_API_KEY
+Authorization: Bearer YOUR_CLERK_JWT
 ```
+
+Obtain tokens by integrating Clerk in your frontend or by using Clerk's server-side APIs. Tokens expire, so ensure your client refreshes sessions when required.
 
 <Note>
-  Keep your API keys secure and do not share them in publicly accessible areas such as GitHub, client-side code, etc.
+  Never expose long-lived service keys or raw JWTs in public repositories or client-side code. Rotate credentials immediately if compromise is suspected.
 </Note>
 
 ## API Endpoints
@@ -76,7 +76,7 @@ While you can use the API directly with HTTP requests, we recommend using our cl
 
 The Graphora API has rate limits to ensure fair usage and system stability. The current limits are:
 
-- 100 requests per minute per API key
-- 5,000 requests per day per API key
+- 100 requests per minute per authenticated user/session
+- 5,000 requests per day per authenticated user/session
 
 If you exceed these limits, you'll receive a `429 Too Many Requests` response.

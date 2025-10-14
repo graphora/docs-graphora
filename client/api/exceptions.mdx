@@ -136,7 +136,7 @@ try:
     ontology_response = client.register_ontology(ontology_yaml)
 except GraphoraAPIError as e:
     if e.status_code == 401:
-        print("Authentication failed. Check your API key.")
+        print("Authentication failed. Ensure your Clerk bearer token is valid and unexpired.")
     elif e.status_code == 404:
         print("Resource not found.")
     elif e.status_code == 400:
