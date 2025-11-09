@@ -12,13 +12,11 @@ This page provides practical examples of working with ontologies in the Graphora
 The following example demonstrates how to create an ontology definition and register it with Graphora:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Define your ontology
@@ -70,13 +68,11 @@ print(f"Ontology registered with ID: {response.id}")
 You can also load an ontology from a YAML file:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Load the ontology from a file
@@ -93,13 +89,11 @@ print(f"Ontology registered with ID: {response.id}")
 You can retrieve a previously registered ontology by its ID:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Retrieve an ontology by ID
@@ -114,13 +108,11 @@ print(ontology_yaml)
 To update an existing ontology, you can use the same `register_ontology` method with an updated definition:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Define your updated ontology

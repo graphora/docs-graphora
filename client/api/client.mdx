@@ -14,7 +14,6 @@ import os
 from graphora import GraphoraClient
 
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
     user_id="optional-local-id",  # optional helper for local bookkeeping
     timeout=60
@@ -25,8 +24,8 @@ client = GraphoraClient(
 
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
-| `base_url` | `str` | Base URL of the Graphora API | Required |
-| `auth_token` | `str` | Clerk-issued bearer token for authentication | Required if env not set |
+| `base_url` | `str` | Base URL of the Graphora API | `None` (defaults to `GRAPHORA_API_URL` or `https://api.graphora.io`) |
+| `auth_token` | `str` | Clerk-issued bearer token for authentication | `None` (falls back to `GRAPHORA_AUTH_TOKEN`) |
 | `user_id` | `str` | Optional identifier for client-side logging | `None` |
 | `timeout` | `int` | Request timeout in seconds | `60` |
 
@@ -36,7 +35,7 @@ The client can also use environment variables for configuration:
 
 - `GRAPHORA_AUTH_TOKEN`: Clerk bearer token (used when `auth_token` is omitted)
 - `GRAPHORA_USER_ID`: Optional user identifier (used only for client logs)
-- `GRAPHORA_API_URL`: API URL (can be overridden by the `base_url` parameter)
+- `GRAPHORA_API_URL`: Optional API URL override (used when `base_url` is omitted)
 
 ## Ontology Methods
 
@@ -188,7 +187,10 @@ def get_transform_status(
 
 ```python
 status = client.get_transform_status("your-transform-id")
-print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+print(
+    f"Overall: {status.overall_status} | Stage: {status.current_stage} | "
+    f"Complete: {status.percentage_complete:.1f}%"
+)
 ```
 
 ### wait_for_transform
@@ -227,7 +229,7 @@ try:
         timeout=600,  # 10 minutes
         poll_interval=10
     )
-    print(f"Final status: {final_status.status}")
+    print(f"Run finished with: {final_status.overall_status}")
 except GraphoraClientError as e:
     print(f"Error: {str(e)}")
 ```
@@ -361,7 +363,7 @@ def start_merge(
     session_id: str,
     transform_id: str,
     merge_id: Optional[str] = None
-) -> MergeResponse:
+) -> MergeInitResponse:
     """
     Start a new merge process.
     
@@ -371,19 +373,19 @@ def start_merge(
         merge_id: Optional custom merge ID
         
     Returns:
-        MergeResponse with the ID for tracking progress
+        MergeInitResponse with the ID for tracking progress
     """
 ```
 
 #### Example
 
 ```python
-merge_response = client.start_merge(
+merge = client.start_merge(
     session_id="your-ontology-id",
     transform_id="your-transform-id"
 )
 
-merge_id = merge_response.merge_id
+merge_id = merge.merge_id
 ```
 
 ### get_merge_status
@@ -391,7 +393,7 @@ merge_id = merge_response.merge_id
 Get the status of a merge process.
 
 ```python
-def get_merge_status(self, merge_id: str) -> MergeStatus:
+def get_merge_status(self, merge_id: str) -> MergeState:
     """
     Get the status of a merge process.
     
@@ -399,16 +401,15 @@ def get_merge_status(self, merge_id: str) -> MergeStatus:
         merge_id: ID of the merge to check
         
     Returns:
-        MergeStatus with current progress
+        MergeState identifier (e.g., `MERGE_IN_PROGRESS`, `COMPLETED`)
     """
 ```
 
 #### Example
 
 ```python
-status = client.get_merge_status("your-merge-id")
-print(f"Status: {status.status}, Progress: {status.progress:.2%}")
-print(f"Conflicts: {status.conflicts_count}, Resolved: {status.resolved_count}")
+state = client.get_merge_status("your-merge-id")
+print(f"Merge state: {state}")
 ```
 
 ### get_conflicts
@@ -416,7 +417,7 @@ print(f"Conflicts: {status.conflicts_count}, Resolved: {status.resolved_count}")
 Get conflicts for a merge process.
 
 ```python
-def get_conflicts(self, merge_id: str) -> List[ConflictResolution]:
+def get_conflicts(self, merge_id: str) -> List[ChangeLog]:
     """
     Get conflicts for a merge process.
     
@@ -424,7 +425,7 @@ def get_conflicts(self, merge_id: str) -> List[ConflictResolution]:
         merge_id: ID of the merge process
         
     Returns:
-        List of conflicts requiring resolution
+        List of change logs requiring human review
     """
 ```
 
@@ -434,9 +435,7 @@ def get_conflicts(self, merge_id: str) -> List[ConflictResolution]:
 conflicts = client.get_conflicts("your-merge-id")
 for conflict in conflicts:
     print(f"Conflict ID: {conflict.id}")
-    print(f"Entity ID: {conflict.entity_id}")
-    print(f"Entity Type: {conflict.entity_type}")
-    print(f"Conflict Type: {conflict.conflict_type}")
+    print(f"Node: {conflict.staging_node.id} -> {conflict.prop_changes}")
 ```
 
 ### resolve_conflict
@@ -475,9 +474,9 @@ from graphora.models import ResolutionStrategy
 success = client.resolve_conflict(
     merge_id="your-merge-id",
     conflict_id="conflict-123",
-    changed_props={"name": "John Smith"},
-    resolution=ResolutionStrategy.ACCEPT,
-    learning_comment="Accepting this entity"
+    changed_props={},
+    resolution=ResolutionStrategy.KEEP_STAGING,
+    learning_comment="Keep staging data; production is stale"
 )
 
 if success:
@@ -897,6 +896,49 @@ except GraphoraClientError as e:
     print(f"Client Error: {str(e)}")
 except Exception as e:
     print(f"Unexpected error: {str(e)}")
+```
+
+## Dashboard Methods
+
+### get_dashboard_summary
+
+Retrieve the KPI snapshot used at the top of the dashboard.
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient(base_url="https://api.graphora.io", auth_token="...")
+summary = client.get_dashboard_summary(days=14)
+print(summary.total_runs, summary.average_duration_ms)
+```
+
+### get_dashboard_runs
+
+Fetch recent transform runs with aggregated quality and token information.
+
+```python
+runs = client.get_dashboard_runs(limit=10)
+for run in runs.runs:
+    print(run.document_name, run.quality_score, run.llm_usage.total_tokens)
+```
+
+### get_dashboard_performance
+
+Retrieve time-series performance metrics (duration, token usage, cost) for charting.
+
+```python
+performance = client.get_dashboard_performance(days=7)
+for point in performance.timeseries:
+    print(point.date, point.average_duration_ms)
+```
+
+### get_dashboard_quality
+
+Access aggregated quality stats including rule frequencies and entity coverage.
+
+```python
+quality = client.get_dashboard_quality(days=30)
+print(quality.average_score, quality.top_rules[:3])
 ```
 
 ## Next Steps

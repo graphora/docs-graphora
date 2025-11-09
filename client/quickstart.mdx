@@ -25,7 +25,6 @@ import os
 from graphora import GraphoraClient
 
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 ```
@@ -37,7 +36,8 @@ client = GraphoraClient(
 ```python Late binding
 from graphora import GraphoraClient
 
-client = GraphoraClient(base_url="https://api.graphora.io")
+# Falls back to GRAPHORA_API_URL or https://api.graphora.io
+client = GraphoraClient()
 ```
 </CodeGroup>
 
@@ -64,7 +64,6 @@ from graphora import GraphoraClient
 
 # Initialize client with a bearer token
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
@@ -99,15 +98,17 @@ Transforming documents is an asynchronous process. You can check the status or w
 
 <CodeGroup>
 ```python Check status
-# Check status
 status = client.get_transform_status(transform_id)
-print(f"Status: {status.status}, Progress: {status.progress:.2%}")
+print(
+    f"Stage: {status.current_stage} | "
+    f"Overall: {status.overall_status} | "
+    f"Complete: {status.percentage_complete:.1f}%"
+)
 ```
 
 ```python Wait for completion
-# Wait for completion
 final_status = client.wait_for_transform(transform_id)
-print(f"Final status: {final_status.status}")
+print(f"Run finished with: {final_status.overall_status}")
 ```
 </CodeGroup>
 
@@ -119,13 +120,14 @@ After transformation, you can retrieve the resulting graph.
 # Get the graph
 graph = client.get_transformed_graph(transform_id=transform_id)
 
-# Print summary
-print(f"Nodes: {len(graph.nodes)}")
-print(f"Edges: {len(graph.edges)}")
+print(
+    f"Nodes: {graph.total_nodes or len(graph.nodes)} | "
+    f"Edges: {graph.total_edges or len(graph.edges)}"
+)
 
-# Print node details
-for node in graph.nodes[:5]:  # First 5 nodes
-    print(f"Node {node.id}: {node.labels} - {node.properties}")
+for node in graph.nodes[:5]:
+    label = node.label or ",".join(node.labels or [])
+    print(f"{node.id} [{label}] -> {node.properties}")
 ```
 
 ### 5. Merge the Extracted Data
@@ -134,12 +136,12 @@ You can merge the extracted data into your knowledge graph.
 
 ```python
 # Start merge process
-merge_response = client.start_merge(
+merge = client.start_merge(
     session_id=ontology_id,
-    transform_id=transform_id
+    transform_id=transform_id,
 )
 
-merge_id = merge_response.merge_id
+merge_id = merge.merge_id
 print(f"Merge ID: {merge_id}")
 ```
 
@@ -148,20 +150,20 @@ print(f"Merge ID: {merge_id}")
 During the merge process, there might be conflicts that need resolution.
 
 ```python
-# Check for conflicts
+from graphora.models import ResolutionStrategy
+
 conflicts = client.get_conflicts(merge_id)
 if conflicts:
     print(f"Found {len(conflicts)} conflicts")
-    
-    # Resolve a conflict
-    for conflict in conflicts:
-        client.resolve_conflict(
-            merge_id=merge_id,
-            conflict_id=conflict.id,
-            changed_props={},
-            resolution="accept",
-            learning_comment="Accepting this entity"
-        )
+
+    first = conflicts[0]
+    client.resolve_conflict(
+        merge_id=merge_id,
+        conflict_id=first.id,
+        changed_props={},
+        resolution=ResolutionStrategy.KEEP_STAGING,
+        learning_comment="Staging data is fresher",
+    )
 ```
 
 ### 7. Get the Merged Graph
@@ -185,7 +187,6 @@ from graphora import GraphoraClient
 
 # Initialize client with a bearer token
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 

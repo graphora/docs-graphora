@@ -1,0 +1,61 @@
+---
+title: 'Local Dev in 5 Minutes'
+description: 'Spin up the complete Graphora stack for development using docker compose.'
+---
+
+# Local Dev in 5 Minutes
+
+Bring up the API and its dependencies with a single command using the dockerised dev stack.
+
+<Steps>
+  <Step title="Copy environment templates">
+    ```bash
+    cp .env.example .env
+    ```
+
+    The template includes the knobs used by docker compose (API port, Redis, Prefect, Neo4j container passwords). Populate the Clerk, Supabase, and provider keys you use in staging/production. For local Neo4j access, create `database_configs` entries in Supabase that point to `bolt://neo4j-staging:7687` and `bolt://neo4j-prod:7687` with the passwords from `.env`.
+  </Step>
+  <Step title="Launch the stack">
+    ```bash
+    make dev-up
+    ```
+
+    Services:
+
+    | Service | Host endpoint | Notes |
+    | --- | --- | --- |
+    | API | `http://localhost:${API_PORT:-8000}` | Hot reload and new `/health` + `/ready` endpoints |
+    | Redis | internal only (`redis://redis:6379/0`) | No host port to avoid clashes; override via `docker-compose.override.yml` if you need it |
+    | Prefect | `http://localhost:${PREFECT_PORT:-4200}` | `PREFECT_API_URL` is injected into the API container |
+
+    Supabase, Clerk, and any downstream services continue to run outside of Docker—you simply point the API to them via `.env`.
+  </Step>
+  <Step title="Check health">
+    ```bash
+    curl http://localhost:8000/health
+    curl http://localhost:8000/ready
+    ```
+
+    `/health` returns immediately once FastAPI starts; `/ready` pings Redis and the Prefect API so docker-compose health checks know when the stack is usable.
+  </Step>
+  <Step title="Daily commands">
+    ```bash
+    make dev-logs      # tail uvicorn output
+    make dev-shell     # open a shell in the api container
+    make dev-down      # stop and remove containers + volumes
+    ```
+
+    Need custom ports or credentials? Copy `docker/docker-compose.override.example.yml` to `docker-compose.override.yml` and override just the fields you care about (e.g., map Redis to a host port or use a different Clerk project).
+  </Step>
+</Steps>
+
+### Frontend + non-docker options
+
+- Start the [`graphora-fe`](https://github.com/graphora/graphora-fe) app separately with `npm run dev`, pointing `BACKEND_API_URL` to `http://localhost:8000`.
+- If you only need containerised Neo4j + Redis while running the API on bare metal, use `docker compose -f docker-compose.local.yml up -d` and manage FastAPI via `uv run uvicorn app.main:app`.
+
+### Tips
+
+- Use `make dev-up -- --build` (or `make dev-rebuild` if you add a helper) whenever Dockerfile dependencies change.
+- Supabase stores the per-user database credentials the API uses at runtime. Updating `.env` only controls the docker containers; edit the Supabase `database_configs` rows to switch endpoints.
+- Regenerate the OpenAPI snapshot (`make openapi-snapshot`) before syncing these docs so the Mintlify API reference stays current.

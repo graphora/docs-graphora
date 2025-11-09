@@ -58,9 +58,8 @@ Here's a simple example of using the Graphora client library to upload an ontolo
 import os
 from graphora import GraphoraClient
 
-# Initialize client with a Clerk bearer token
+# Base URL defaults to GRAPHORA_API_URL or https://api.graphora.io
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
@@ -86,9 +85,9 @@ print(f"Nodes: {len(graph.nodes)}")
 print(f"Edges: {len(graph.edges)}")
 
 # Start merging the processed data
-merge_response = client.start_merge(
+merge = client.start_merge(
     session_id=ontology_id,
-    transform_id=transform_response.id
+    transform_id=transform_response.id,
 )
 ```
 

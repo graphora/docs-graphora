@@ -12,13 +12,11 @@ This page provides practical examples of merging extracted data into knowledge g
 After transforming documents, you can merge the extracted data into a knowledge graph:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Use a previously completed transformation
@@ -26,13 +24,11 @@ session_id = "ont_123456789"  # Ontology ID
 transform_id = "transform_123456789"
 
 # Start the merging process
-merge_response = client.start_merge(session_id, transform_id)
-print(f"Merge started with ID: {merge_response.merge_id}")
+merge = client.start_merge(session_id, transform_id)
+print(f"Merge started with ID: {merge.merge_id}")
 
-# Check the status of the merge
-status = client.get_merge_status(merge_response.merge_id)
-print(f"Merge status: {status.status}")
-print(f"Progress: {status.progress:.2%}")
+state = client.get_merge_status(merge.merge_id)
+print("Merge state:", state)
 ```
 
 ## Monitoring Merge Progress
@@ -40,14 +36,12 @@ print(f"Progress: {status.progress:.2%}")
 For large datasets, merging can take some time. Here's how to monitor the progress:
 
 ```python
-from graphora import GraphoraClient
+import os
 import time
+from graphora import GraphoraClient, MergeState
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Start a merge (assuming you have already completed a transformation)
@@ -59,21 +53,15 @@ merge_id = merge_response.merge_id
 # Monitor the merge progress
 completed = False
 while not completed:
-    status = client.get_merge_status(merge_id)
-    print(f"Status: {status.status}, Progress: {status.progress:.2%}")
-    
-    if status.status in ["COMPLETED", "FAILED"]:
+    state = client.get_merge_status(merge_id)
+    print(f"Merge state: {state}")
+
+    if state in (MergeState.COMPLETED, MergeState.FAILED):
         completed = True
-        if status.status == "COMPLETED":
-            print("Merge completed successfully!")
-        else:
-            print(f"Merge failed: {status.error}")
     else:
-        # Wait for 5 seconds before checking again
         time.sleep(5)
 
-# If merge was successful, you can retrieve the graph data
-if status.status == "COMPLETED":
+if state == MergeState.COMPLETED:
     graph = client.get_merged_graph(merge_id, transform_id)
     print(f"Retrieved graph with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
 ```
@@ -83,13 +71,11 @@ if status.status == "COMPLETED":
 When merging data, conflicts may arise. Here's how to handle them:
 
 ```python
-from graphora import GraphoraClient
+import os
+from graphora import GraphoraClient, ResolutionStrategy
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Get conflicts for a merge that has detected conflicts
@@ -101,29 +87,16 @@ print(f"Found {len(conflicts)} conflicts")
 # Resolve each conflict
 for conflict in conflicts:
     print(f"Conflict ID: {conflict.id}")
-    print(f"Entity Type: {conflict.entity_type}")
-    print(f"Entity ID: {conflict.entity_id}")
-    print(f"Conflicting Properties: {conflict.properties}")
-    
-    # Example: Resolve by accepting the conflict
-    changed_props = {}  # You can modify specific properties here
-    
-    # Add a learning comment to improve future conflict resolution
-    learning_comment = "Accepting this entity as it appears to be accurate"
-    
-    # Resolve the conflict
-    success = client.resolve_conflict(
-        merge_id, 
-        conflict.id, 
-        changed_props, 
-        "accept",  # Resolution strategy
-        learning_comment
+    print(f"Staging props: {conflict.staging_node.properties}")
+    print(f"Production props: {conflict.prod_node.properties}")
+
+    client.resolve_conflict(
+        merge_id,
+        conflict.id,
+        changed_props={},
+        resolution=ResolutionStrategy.KEEP_STAGING,
+        learning_comment="Prefer staging record",
     )
-    
-    if success:
-        print(f"Resolved conflict {conflict.id}")
-    else:
-        print(f"Failed to resolve conflict {conflict.id}")
 ```
 
 ## Getting Merge Statistics

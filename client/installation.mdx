@@ -50,7 +50,7 @@ You can verify that the library is installed correctly by importing it in Python
 import graphora
 
 print(graphora.__version__)
-# Should print: 0.2.0
+# Should print: 0.4.1
 ```
 
 This should print the version number of the installed library.
@@ -74,16 +74,29 @@ import os
 from graphora import GraphoraClient
 
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
     auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 ```
 
 Passing `user_id` is optional and only used for local context; the backend derives identity from the JWT `sub` claim.
 
+#### Pipelines / server-to-server workflows
+
+Need to call Graphora from a CI job or data pipeline? Mint short-lived Clerk JWTs on demand—no extra Graphora code is required:
+
+1. Create a Clerk user that represents the automation job and add a JWT template (e.g. `graphora_pipeline`) whose `aud` matches the Graphora API configuration.
+2. When the job starts, request a token with your Clerk API key:
+   ```bash
+   curl -X POST "https://api.clerk.com/v1/users/<USER_ID>/tokens/graphora_pipeline" \\
+     -H "Authorization: Bearer $CLERK_API_KEY" \\
+     -H "Content-Type: application/json" \\
+     -d '{"expires_in_seconds": 3600}'
+   ```
+3. Export the returned `token` as `GRAPHORA_AUTH_TOKEN` (or pass it directly to `GraphoraClient`). Rotate both the JWT and the Clerk API key regularly.
+
 ### API URL
 
-By default, the client will connect to the production API URL. You can override this by setting the `GRAPHORA_API_URL` environment variable:
+By default, the client will connect to `GRAPHORA_API_URL` (or `https://api.graphora.io` if the variable is unset). Override it when targeting staging or a local docker stack:
 
 ```bash
 export GRAPHORA_API_URL="https://api.graphora.io"
@@ -94,9 +107,7 @@ Or provide it directly when initializing the client:
 ```python
 from graphora import GraphoraClient
 
-client = GraphoraClient(
-    base_url="https://api.graphora.io",
-)
+client = GraphoraClient(base_url="http://localhost:8000")
 ```
 
 ### Complete Environment Setup
@@ -107,8 +118,8 @@ Here's a complete example of setting up your environment:
 # Required
 export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
 
-# Optional
-export GRAPHORA_API_URL="https://api.graphora.io"
+# Optional overrides
+export GRAPHORA_API_URL="http://localhost:8000"
 ```
 
 With these environment variables set, you can initialize the client with minimal parameters:
@@ -116,8 +127,7 @@ With these environment variables set, you can initialize the client with minimal
 ```python
 from graphora import GraphoraClient
 
-# Uses environment variables for configuration
-client = GraphoraClient(base_url="https://api.graphora.io")
+client = GraphoraClient()
 ```
 
 ## Next steps

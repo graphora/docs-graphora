@@ -7,13 +7,19 @@ description: 'Reference documentation for the Graphora API'
 
 The Graphora API provides programmatic access to the Graphora platform, allowing you to manage ontologies, transform documents, and work with knowledge graphs. This reference documents the endpoints available in the Graphora API.
 
-## Base URL
+## Base URLs
 
-All API requests should be made to the following base URL:
+```text
+https://api.graphora.io/api/v1          # production / staging
+http://localhost:8000/api/v1            # docker compose stack (make dev-up)
+```
 
-```
-https://api.graphora.io/api/v1
-```
+Set `GRAPHORA_API_URL` (or `PUBLIC_API_URL` in the API `.env`) to point your clients at the desired environment.
+
+### Health endpoints
+
+- `GET /health` – lightweight liveness probe used by load balancers.
+- `GET /ready` – readiness probe that verifies Redis and Prefect connectivity. The docker compose file uses it to determine when the stack is usable.
 
 ## Authentication
 
@@ -23,7 +29,7 @@ Graphora relies on Clerk for authentication and session management. Every reques
 Authorization: Bearer YOUR_CLERK_JWT
 ```
 
-Obtain tokens by integrating Clerk in your frontend or by using Clerk's server-side APIs. Tokens expire, so ensure your client refreshes sessions when required.
+Obtain tokens by integrating Clerk in your frontend or by using Clerk's server-side APIs. For pipelines, create a Clerk JWT template (e.g., `graphora_pipeline`), mint a short-lived token via `POST /v1/users/<id>/tokens/<template>`, and pass it as `GRAPHORA_AUTH_TOKEN` before invoking the API. Tokens expire, so ensure your client refreshes sessions when required.
 
 <Note>
   Never expose long-lived service keys or raw JWTs in public repositories or client-side code. Rotate credentials immediately if compromise is suspected.
@@ -58,7 +64,15 @@ The Graphora API is organized around the following main resources:
   >
     Query and manipulate graph data
   </Card>
+  <Card
+    title="Dashboard"
+    icon="chart-line"
+  >
+    Retrieve KPIs, time-series performance, and recent runs for monitoring
+  </Card>
 </CardGroup>
+
+The dashboard suite exposes `GET /api/v1/dashboard/summary`, `/performance`, `/quality`, and `/runs` (also available as `/transform/runs` for backward compatibility).
 
 ## Client Libraries
 

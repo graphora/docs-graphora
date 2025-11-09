@@ -12,13 +12,11 @@ This page provides practical examples of transforming documents using the Grapho
 The following example demonstrates how to transform a set of documents using a registered ontology:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Use a previously registered ontology
@@ -46,13 +44,11 @@ print(f"Progress: {status.progress:.2%}")
 You can also provide metadata for each document to enrich the transformation process:
 
 ```python
+import os
 from graphora import GraphoraClient, DocumentMetadata, DocumentType
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Use a previously registered ontology
@@ -95,14 +91,12 @@ print(f"Transformation started with ID: {response.id}")
 For long-running transformations, you can monitor the progress:
 
 ```python
-from graphora import GraphoraClient
+import os
 import time
+from graphora import GraphoraClient, TransformRunStatus
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Start a transformation (assuming you have already set up the ontology and documents)
@@ -113,14 +107,21 @@ transform_id = transform_response.id
 completed = False
 while not completed:
     status = client.get_transform_status(transform_id)
-    print(f"Status: {status.status}, Progress: {status.progress:.2%}")
-    
-    if status.status in ["COMPLETED", "FAILED"]:
+    print(
+        f"{status.current_stage} | {status.overall_status} | "
+        f"{status.percentage_complete:.1f}%"
+    )
+
+    if status.overall_status in (
+        TransformRunStatus.COMPLETED,
+        TransformRunStatus.FAILED,
+    ):
         completed = True
-        if status.status == "COMPLETED":
+        if status.overall_status == TransformRunStatus.COMPLETED:
             print("Transformation completed successfully!")
         else:
-            print(f"Transformation failed: {status.error}")
+            failure = status.error_summary.error_message if status.error_summary else "Unknown error"
+            print(f"Transformation failed: {failure}")
     else:
         # Wait for 5 seconds before checking again
         time.sleep(5)
@@ -135,13 +136,11 @@ if status.status == "COMPLETED":
 You can also use the built-in wait method for convenience:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Start a transformation
@@ -151,7 +150,7 @@ transform_id = transform_response.id
 # Wait for completion (with timeout)
 try:
     final_status = client.wait_for_transform(transform_id, timeout=300)  # 5 minutes
-    print(f"Transformation completed with status: {final_status.status}")
+    print(f"Transformation completed with status: {final_status.overall_status}")
 except Exception as e:
     print(f"Transformation failed or timed out: {e}")
 ```
@@ -161,13 +160,11 @@ except Exception as e:
 Graphora supports various document types. Here's how to transform a mix of document types:
 
 ```python
+import os
 from graphora import GraphoraClient
 
-# Initialize the client with user ID (required)
 client = GraphoraClient(
-    base_url="https://api.graphora.io",
-    user_id="your-user-id",  # Required for all API calls
-    api_key="your-api-key"
+    auth_token=os.environ["GRAPHORA_AUTH_TOKEN"],
 )
 
 # Use a previously registered ontology
