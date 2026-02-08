@@ -1,26 +1,33 @@
 ---
 title: 'Installation'
-description: 'How to install the Graphora client library'
+description: 'How to install the Graphora client library and CLI'
 ---
 
 # Installation
 
-The Graphora client library is designed to be easy to install and has minimal dependencies. This guide will walk you through the installation process and help you get set up quickly.
+Graphora is available as a Python package with two installation options: the client library for programmatic use, and the CLI for command-line extraction.
 
 ## Requirements
 
 - Python 3.7 or higher
 - pip (Python package installer)
 
-## Installing with pip
+## Install Options
 
-The recommended way to install the Graphora client library is using pip:
-
-```bash
+<CodeGroup>
+```bash Python Client Library
 pip install graphora
 ```
 
-This will install the library and all its dependencies.
+```bash Client Library + CLI
+pip install graphora[cli]
+```
+</CodeGroup>
+
+| Package | What you get |
+|---------|-------------|
+| `graphora` | Python client library (`GraphoraClient` class) for API integration |
+| `graphora[cli]` | Everything above plus the `graphora` CLI command for command-line extraction |
 
 ## Installing from source
 
@@ -29,7 +36,7 @@ If you prefer to install from source, you can clone the repository and install i
 ```bash
 git clone https://github.com/graphora/graphora-client.git
 cd graphora-client
-pip install -e .
+pip install -e ".[cli]"
 ```
 
 ## Dependencies
@@ -40,7 +47,7 @@ The Graphora client library has the following dependencies:
 - `pydantic>=1.8.0` - For data validation and settings management
 - `pyyaml>=5.4.0` - For parsing YAML ontology files
 
-These dependencies will be automatically installed when you install the library using pip.
+The `cli` extra adds additional dependencies for the command-line interface.
 
 ## Verifying the installation
 
@@ -50,10 +57,14 @@ You can verify that the library is installed correctly by importing it in Python
 import graphora
 
 print(graphora.__version__)
-# Should print: 0.4.1
+# Should print: 0.4.2
 ```
 
-This should print the version number of the installed library.
+If you installed the CLI, verify it works:
+
+```bash
+graphora --version
+```
 
 ## Environment setup
 

@@ -1,0 +1,127 @@
+---
+title: 'Schema Copilot'
+description: 'Build ontology schemas through natural language conversation with AI.'
+---
+
+# Schema Copilot
+
+The Schema Copilot is a chat-based interface in the Graphora web UI that helps you create and refine ontology schemas through natural language conversation. Instead of writing YAML from scratch, describe your domain in plain language and let AI generate the schema for you.
+
+## How It Works
+
+<Steps>
+  <Step title="Open the AI Copilot page">
+    Navigate to the **AI Copilot** page in the Graphora dashboard.
+  </Step>
+  <Step title="Describe your domain">
+    Tell the copilot what you want to model. For example:
+
+    > "I want to extract information about companies, their products, and the people who work there. Companies have names and industries. People have names, titles, and email addresses. Products have names and descriptions."
+
+    The copilot uses a freeflow chat interface with streaming responses, so you see the schema being built in real time.
+  </Step>
+  <Step title="Review the generated schema">
+    The copilot generates a complete ontology YAML with entities, properties, relationships, and quality rules. Review it in the editor.
+
+    ```yaml
+    version: 1
+    entities:
+      Company:
+        properties:
+          name:
+            type: string
+            required: true
+            unique: true
+          industry:
+            type: string
+        relationships:
+          HAS_EMPLOYEE:
+            target: Person
+            cardinality: one_to_many
+          HAS_PRODUCT:
+            target: Product
+            cardinality: one_to_many
+      Person:
+        properties:
+          name:
+            type: string
+            required: true
+          title:
+            type: string
+          email:
+            type: string
+        relationships:
+          WORKS_FOR:
+            target: Company
+      Product:
+        properties:
+          name:
+            type: string
+            required: true
+            unique: true
+          description:
+            type: string
+    ```
+  </Step>
+  <Step title="Refine through conversation">
+    Continue the conversation to adjust the schema:
+
+    > "Add a `foundedYear` property to Company as an integer. Also add a COMPETES_WITH relationship between companies."
+
+    The copilot updates the schema incrementally based on your feedback.
+  </Step>
+  <Step title="Save and use">
+    Once you are satisfied, save the ontology. It is immediately available for document transformations.
+  </Step>
+</Steps>
+
+## Tips for Better Results
+
+- **Be specific about property types.** Instead of "companies have revenue", say "companies have revenue as an integer representing USD."
+- **Mention cardinality.** For example: "A company can have many products, but a product belongs to one company."
+- **Include constraints.** Say things like "company name should be unique and required."
+- **Iterate.** Start with core entities and add complexity through follow-up messages.
+- **Ask for quality rules.** Tell the copilot: "Add quality rules to validate email format and ensure company names are not empty."
+
+## When to Use the Copilot vs. Manual Editing
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Starting from scratch | Schema Copilot |
+| Quick domain exploration | Schema Copilot |
+| Precise control over every field | Manual YAML editing |
+| Complex quality rules | Start with Copilot, refine in YAML editor |
+| Existing schema to import | Upload YAML directly |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="YAML Syntax Reference"
+    icon="file-code"
+    href="/client/ontology-editor/yaml-syntax"
+  >
+    Understand the full ontology YAML format for manual editing
+  </Card>
+  <Card
+    title="Quality Rules"
+    icon="shield-check"
+    href="/client/ontology-editor/quality-rules"
+  >
+    Add validation rules to ensure data quality
+  </Card>
+  <Card
+    title="Ontology Examples"
+    icon="book-open"
+    href="/client/ontology-editor/examples"
+  >
+    Browse complete ontology examples for different domains
+  </Card>
+  <Card
+    title="Transform Documents"
+    icon="file-lines"
+    href="/client/concepts/transformation"
+  >
+    Use your schema to extract knowledge graphs from documents
+  </Card>
+</CardGroup>

@@ -1,11 +1,85 @@
 ---
-title: 'Local Dev in 5 Minutes'
-description: 'Spin up the complete Graphora stack for development using docker compose.'
+title: 'Local Development'
+description: 'Run Graphora locally with zero-config mode or the full Docker stack.'
 ---
 
-# Local Dev in 5 Minutes
+# Local Development
 
-Bring up the API and its dependencies with a single command using the dockerised dev stack.
+Graphora supports two local development modes: a **zero-config mode** that needs nothing except Python, and a **full Docker stack** for production-like environments.
+
+## Zero-Config Mode (Recommended for Getting Started)
+
+Run the Graphora API with in-memory storage and no external dependencies. This is the fastest way to develop locally or evaluate the platform.
+
+### Prerequisites
+
+- Python 3.11 or higher
+- [uv](https://github.com/astral-sh/uv) package manager
+- An LLM API key (Gemini, OpenAI, or another supported provider)
+
+<Steps>
+  <Step title="Clone and install">
+    ```bash
+    git clone https://github.com/graphora/graphora-api.git
+    cd graphora-api
+    uv sync
+    ```
+  </Step>
+  <Step title="Configure environment">
+    ```bash
+    cp .env.example .env
+    ```
+
+    Set these variables in your `.env` file:
+
+    ```bash
+    # Use in-memory storage (no Neo4j needed)
+    STORAGE_TYPE=memory
+
+    # Skip Clerk authentication for local dev
+    AUTH_BYPASS_ENABLED=true
+
+    # Provide at least one LLM API key
+    GOOGLE_GEMINI_API_KEY=your-gemini-key
+    # Or use OpenAI:
+    # OPENAI_API_KEY=your-openai-key
+    ```
+
+    That is the minimum configuration. Redis, Neo4j, Postgres, and Prefect are all optional in this mode.
+  </Step>
+  <Step title="Start the server">
+    ```bash
+    make dev
+    ```
+
+    The API will be available at `http://localhost:8000`.
+  </Step>
+  <Step title="Verify it works">
+    ```bash
+    curl http://localhost:8000/health
+    ```
+  </Step>
+</Steps>
+
+### What happens without Redis?
+
+The progress tracker automatically falls back to an in-memory store when Redis is unavailable. You will see a log message like:
+
+```
+Redis unavailable (...), using in-memory progress tracking
+```
+
+This is expected in zero-config mode. Transform progress tracking works the same way -- it just does not persist across server restarts.
+
+<Note>
+In-memory mode stores all data in the running process. Data is lost when the server stops. Use this for development and testing only.
+</Note>
+
+---
+
+## Full Docker Stack
+
+For a production-like local environment with Neo4j, Redis, Postgres, and Prefect:
 
 <Steps>
   <Step title="Copy environment templates">
@@ -13,22 +87,27 @@ Bring up the API and its dependencies with a single command using the dockerised
     cp .env.example .env
     ```
 
-    The template includes the knobs used by docker compose (API port, Redis, Prefect, Neo4j container passwords). Populate the Clerk, Supabase, and provider keys you use in staging/production. For local Neo4j access, create `database_configs` entries in Supabase that point to `bolt://neo4j-staging:7687` and `bolt://neo4j-prod:7687` with the passwords from `.env`.
+    The template includes the knobs used by docker compose (API port, Redis, Prefect, Neo4j container passwords). Populate the Clerk, Supabase, and provider keys you use in staging/production.
   </Step>
   <Step title="Launch the stack">
     ```bash
-    make dev-up
+    make compose-up
     ```
 
     Services:
 
     | Service | Host endpoint | Notes |
     | --- | --- | --- |
-    | API | `http://localhost:${API_PORT:-8000}` | Hot reload and new `/health` + `/ready` endpoints |
-    | Redis | internal only (`redis://redis:6379/0`) | No host port to avoid clashes; override via `docker-compose.override.yml` if you need it |
+    | API | `http://localhost:${API_PORT:-8000}` | Hot reload with `/health` and `/ready` endpoints |
+    | Redis | internal only (`redis://redis:6379/0`) | No host port by default; override via `docker-compose.override.yml` |
     | Prefect | `http://localhost:${PREFECT_PORT:-4200}` | `PREFECT_API_URL` is injected into the API container |
-
-    Supabase, Clerk, and any downstream services continue to run outside of Docker—you simply point the API to them via `.env`.
+    | Neo4j | `bolt://localhost:7687` | For graph storage |
+    | Postgres | `localhost:5432` | Application database for configs and audit logs |
+  </Step>
+  <Step title="Start the API">
+    ```bash
+    make dev
+    ```
   </Step>
   <Step title="Check health">
     ```bash
@@ -36,26 +115,60 @@ Bring up the API and its dependencies with a single command using the dockerised
     curl http://localhost:8000/ready
     ```
 
-    `/health` returns immediately once FastAPI starts; `/ready` pings Redis and the Prefect API so docker-compose health checks know when the stack is usable.
+    `/health` returns immediately once FastAPI starts. `/ready` pings Redis and the Prefect API so docker-compose health checks know when the stack is usable.
   </Step>
   <Step title="Daily commands">
     ```bash
-    make dev-logs      # tail uvicorn output
-    make dev-shell     # open a shell in the api container
-    make dev-down      # stop and remove containers + volumes
+    make compose-logs     # tail service output
+    make compose-status   # show container status
+    make compose-down     # stop and remove containers + volumes
     ```
-
-    Need custom ports or credentials? Copy `docker/docker-compose.override.example.yml` to `docker-compose.override.yml` and override just the fields you care about (e.g., map Redis to a host port or use a different Clerk project).
   </Step>
 </Steps>
 
-### Frontend + non-docker options
+---
 
-- Start the [`graphora-fe`](https://github.com/graphora/graphora-fe) app separately with `npm run dev`, pointing `BACKEND_API_URL` to `http://localhost:8000`.
-- If you only need containerised Neo4j + Redis while running the API on bare metal, use `docker compose -f docker-compose.local.yml up -d` and manage FastAPI via `uv run uvicorn app.main:app`.
+## Storage Modes
 
-### Tips
+Graphora supports two storage backends, controlled by the `STORAGE_TYPE` environment variable:
 
-- Use `make dev-up -- --build` (or `make dev-rebuild` if you add a helper) whenever Dockerfile dependencies change.
-- Supabase stores the per-user database credentials the API uses at runtime. Updating `.env` only controls the docker containers; edit the Supabase `database_configs` rows to switch endpoints.
-- Regenerate the OpenAPI snapshot (`make openapi-snapshot`) before syncing these docs so the Mintlify API reference stays current.
+| Mode | Value | Database Required | Best For |
+|------|-------|-------------------|----------|
+| In-memory | `STORAGE_TYPE=memory` | No | Local dev, demos, testing |
+| Neo4j | `STORAGE_TYPE=neo4j` | Yes | Production, staging |
+
+When using `STORAGE_TYPE=memory`, all graph data is stored in the running process and is lost when the server stops. For production use, always use `STORAGE_TYPE=neo4j` with a properly configured Neo4j instance.
+
+---
+
+## Authentication Modes
+
+| Mode | Configuration | Best For |
+|------|--------------|----------|
+| Bypassed | `AUTH_BYPASS_ENABLED=true` | Local development |
+| Clerk | Clerk env vars configured | Production, staging |
+
+When auth bypass is enabled, all requests are treated as coming from the user specified by `AUTH_BYPASS_USER_ID` (defaults to `local-dev-user`). Never enable auth bypass in production.
+
+---
+
+## Frontend
+
+Start the [graphora-fe](https://github.com/graphora/graphora-fe) app separately:
+
+```bash
+cd graphora-fe
+npm install
+npm run dev
+```
+
+Point `NEXT_PUBLIC_API_URL` (or `BACKEND_API_URL`) to `http://localhost:8000`.
+
+---
+
+## Tips
+
+- Use `make dev-up -- --build` whenever Dockerfile dependencies change.
+- Run `make openapi-snapshot` before syncing docs so the Mintlify API reference stays current.
+- For the full list of Make targets, run `make help`.
+- See [Configuration](/platform/configuration) for a complete reference of all environment variables.

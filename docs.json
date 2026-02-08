@@ -18,13 +18,16 @@
             "pages": [
               "index",
               "quickstart",
-              "platform/local-dev"
+              "platform/cli",
+              "platform/local-dev",
+              "platform/configuration"
             ]
           },
           {
-            "group": "UI User Guide",
+            "group": "Platform Guide",
             "pages": [
-              "platform/user-guide"
+              "platform/user-guide",
+              "platform/schema-copilot"
             ]
           }
         ]

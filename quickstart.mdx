@@ -1,102 +1,110 @@
 ---
-title: 'Platform Quickstart'
-description: 'Get started with the Graphora platform'
+title: 'Quickstart'
+description: 'Get started with Graphora in minutes'
 ---
 
-# Graphora Platform Quickstart
+# Quickstart
 
-This guide will help you get started with the Graphora platform. For the client library quickstart, please see the [Client Library Quickstart](/client/quickstart) guide.
+Graphora offers three ways to get started, from zero-install to full local development. Pick the one that fits your situation.
 
-## Overview
+## Option 1: Try the Demo (30 seconds)
 
-Graphora is a knowledge graph platform that helps you extract structured information from unstructured data. The platform consists of several components:
+No signup, no install. Visit [demo.graphora.io](https://demo.graphora.io), upload a document, and see Graphora extract a knowledge graph in real time.
 
-1. **Ontology Management**: Define the structure of your knowledge graph
-2. **Document Processing**: Transform documents into structured data
-3. **Graph Management**: Query and manipulate your knowledge graph
-4. **Client Library**: Integrate Graphora into your applications
+This is the fastest way to see what Graphora does.
+
+## Option 2: Google Colab Notebook (2 minutes)
+
+Run the interactive quickstart notebook in your browser. It walks you through defining an ontology, extracting entities from a sample document, and visualizing the resulting graph -- all without installing anything locally.
+
+<Card
+  title="Open in Google Colab"
+  icon="flask"
+  href="https://colab.research.google.com/github/graphora/graphora-api/blob/main/examples/quickstart.ipynb"
+>
+  Launch the quickstart notebook
+</Card>
+
+The notebook uses `pip install graphora[cli]` and walks you through configuring your Gemini API key. You'll need a Google account and a [free Gemini API key](https://aistudio.google.com/apikey).
+
+## Option 3: CLI (5 minutes)
+
+Install the Graphora CLI and extract knowledge graphs from the command line. The CLI includes an embedded mode that runs the API locally, so you do not need a separate server.
 
 <Steps>
-  <Step title="Create an account">
-    To get started with Graphora, you'll need to create an account. Visit [https://app.graphora.io/signup](https://app.graphora.io/signup) to sign up.
-  </Step>
-  <Step title="Create your first ontology">
-    After signing in, create your first ontology by defining the entities and relationships you want to extract from your documents.
-
-    ```yaml
-    version: 0.1.0
-    entities:
-      Company:
-        properties:
-          name:
-            type: str
-            description: Name of the Company
-            unique: true
-            required: true
-          industry:
-            type: str
-            description: Industry sector
-        relationships:
-          HAS_PRODUCT:
-            target: Product
-      Product:
-        properties:
-          name:
-            type: str
-            description: Product name
-            unique: true
-            required: true
+  <Step title="Install the CLI">
+    ```bash
+    pip install graphora[cli]
     ```
 
-    Save this ontology with a meaningful name, such as "Company Products".
+    This installs both the Python client library and the `graphora` CLI command.
   </Step>
-  <Step title="Upload documents">
-    Upload documents containing information about companies and their products. Graphora supports various document formats including PDF, DOCX, TXT, and more.
+  <Step title="Configure your Gemini API key">
+    Graphora uses Google Gemini for AI-powered extraction. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey), then configure it:
 
-    Navigate to the Documents section and click "Upload" to select your files.
+    ```bash
+    graphora config init --api-key "YOUR_GEMINI_API_KEY"
+    ```
+
+    You can also set it as an environment variable: `export GEMINI_API_KEY="YOUR_KEY"`
   </Step>
-  <Step title="Process documents">
-    After uploading, select the documents you want to process and choose the ontology you created. Click "Process" to start the transformation.
+  <Step title="Extract a knowledge graph">
+    ```bash
+    graphora extract document.pdf --output graph.json
+    ```
 
-    Graphora will extract entities and relationships according to your ontology definition.
+    The CLI will process the document and write the extracted graph to `graph.json`. Schema is inferred automatically from your document content.
   </Step>
-  <Step title="Explore your knowledge graph">
-    Once processing is complete, you can explore your knowledge graph in the Graph Explorer. You'll see the companies and products extracted from your documents, along with their relationships.
+  <Step title="Explore the output">
+    The output is a JSON file containing nodes (entities) and edges (relationships) extracted from your document. You can load it into any graph visualization tool or use it in your application.
 
-    Use the query interface to search for specific entities or relationships.
+    ```bash
+    # Quick peek at what was extracted
+    python -c "
+    import json
+    graph = json.load(open('graph.json'))
+    print(f'Nodes: {len(graph[\"nodes\"])}')
+    print(f'Edges: {len(graph[\"edges\"])}')
+    for node in graph['nodes'][:5]:
+        print(f'  {node[\"labels\"]}: {node[\"properties\"].get(\"name\", node[\"id\"])}')
+    "
+    ```
   </Step>
 </Steps>
 
+For more CLI options, see the [CLI Reference](/platform/cli).
+
 ## Next Steps
 
-Now that you've created your first knowledge graph, you can:
+Once you have seen Graphora in action, you can dive deeper:
 
 <CardGroup cols={2}>
   <Card
-    title="Refine Your Ontology"
-    icon="sitemap"
-    href="/client/concepts/ontology"
+    title="Platform User Guide"
+    icon="map"
+    href="/platform/user-guide"
   >
-    Learn how to create more sophisticated ontologies
+    Complete walkthrough of the web UI workflow
   </Card>
   <Card
-    title="Integrate with Your Applications"
-    icon="code"
+    title="Schema Copilot"
+    icon="wand-magic-sparkles"
+    href="/platform/schema-copilot"
+  >
+    Build ontology schemas through natural language chat
+  </Card>
+  <Card
+    title="Local Development"
+    icon="laptop-code"
+    href="/platform/local-dev"
+  >
+    Run Graphora locally with zero-config in-memory mode
+  </Card>
+  <Card
+    title="Python Client Library"
+    icon="python"
     href="/client/introduction"
   >
-    Use the Graphora client library to integrate with your applications
+    Integrate Graphora into your data pipelines programmatically
   </Card>
-  <Card
-    title="Advanced Graph Queries"
-    icon="database"
-  >
-    Learn how to perform advanced queries on your knowledge graph
-  </Card>
-  <Card
-    title="Data Pipeline Integration"
-    icon="diagram-project"
-  >
-    Integrate Graphora into your data pipelines
-  </Card>
-
 </CardGroup>

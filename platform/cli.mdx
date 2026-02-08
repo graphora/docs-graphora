@@ -1,0 +1,193 @@
+---
+title: 'CLI Reference'
+description: 'Extract knowledge graphs from the command line with the Graphora CLI.'
+---
+
+# CLI Reference
+
+The Graphora CLI lets you extract knowledge graphs from documents directly from the command line. It includes an embedded mode that runs the extraction pipeline locally, so you do not need a separate server for basic usage.
+
+## Installation
+
+```bash
+pip install graphora[cli]
+```
+
+This installs both the `graphora` CLI command and the Python client library. Requires Python 3.9 or higher.
+
+To install the Python client library without the CLI:
+
+```bash
+pip install graphora
+```
+
+Verify the installation:
+
+```bash
+graphora --version
+```
+
+## Configuration
+
+Before extracting, configure your Gemini API key. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey):
+
+```bash
+graphora config init --api-key "YOUR_GEMINI_API_KEY"
+```
+
+This saves the key to `~/.graphora/config.yaml`. You can also set it as an environment variable:
+
+```bash
+export GEMINI_API_KEY="YOUR_KEY"
+```
+
+Other configuration commands:
+
+```bash
+graphora config show          # Show all configuration
+graphora config set llm.model "gemini-2.0-flash"  # Change LLM model
+graphora status               # Check configuration status
+```
+
+## Basic Usage
+
+### Extract entities and relationships from a document
+
+```bash
+graphora extract document.pdf --output graph.json
+```
+
+This processes the document and writes the extracted knowledge graph to `graph.json` as a JSON file containing nodes and edges.
+
+### Supported file formats
+
+The CLI supports the same document formats as the platform:
+
+- PDF (`.pdf`) -- processed with Gemini's native PDF handling for better OCR
+- Word (`.doc`, `.docx`)
+- Text (`.txt`)
+- Markdown (`.md`)
+
+## Commands
+
+### `graphora extract`
+
+Extract a knowledge graph from one or more documents.
+
+```bash
+graphora extract <file> [options]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<file>` | Path to the document to process |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--output`, `-o` | Output file path (default: `graph.json`) |
+| `--schema`, `-s` | Path to an ontology YAML file to guide extraction |
+| `--format`, `-f` | Output format: `json` (default) or `cypher` |
+| `--api-key`, `-k` | LLM API key (overrides config) |
+| `--mode`, `-m` | Execution mode: `embedded` or `remote` |
+| `--verbose`, `-v` | Show detailed progress |
+
+### Examples
+
+**Extract with an ontology:**
+
+```bash
+graphora extract report.pdf \
+  --schema schema.yaml \
+  --output graph.json
+```
+
+**Extract without an ontology (auto-inferred schema):**
+
+```bash
+graphora extract report.pdf --output graph.json
+```
+
+When no schema is provided, Graphora uses AI to infer an appropriate schema from the document content.
+
+**Extract multiple files:**
+
+```bash
+graphora extract doc1.pdf doc2.pdf --output combined.json
+```
+
+**Extract to Cypher format for Neo4j:**
+
+```bash
+graphora extract report.pdf --format cypher --output import.cypher
+```
+
+### `graphora schema infer`
+
+Infer an ontology schema from documents without performing a full extraction.
+
+```bash
+graphora schema infer document.pdf --output ontology.yaml
+```
+
+### `graphora schema validate`
+
+Validate an ontology YAML file.
+
+```bash
+graphora schema validate ontology.yaml
+```
+
+## Embedded Mode
+
+The CLI runs in embedded mode by default. This means it starts a lightweight version of the Graphora API in-process, without needing a running server. This is convenient for:
+
+- Quick one-off extractions
+- CI/CD pipelines
+- Scripting and automation
+- Evaluating Graphora without infrastructure setup
+
+No database, Redis, or external services are required for embedded mode.
+
+## Using with the Hosted API
+
+To use the CLI against the hosted Graphora API (or your own deployment) instead of embedded mode, set the environment variables:
+
+```bash
+export GRAPHORA_API_URL="https://api.graphora.io"
+export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
+
+graphora extract document.pdf --output graph.json
+```
+
+## Python Client Library
+
+The CLI is built on top of the Python client library. For programmatic access, you can use the library directly:
+
+```python
+from graphora import GraphoraClient
+
+client = GraphoraClient()
+
+# Register an ontology
+with open("ontology.yaml") as f:
+    ontology = client.register_ontology(f.read())
+
+# Transform a document
+transform = client.transform(
+    ontology_id=ontology.id,
+    files=["document.pdf"]
+)
+
+# Wait for completion
+status = client.wait_for_transform(transform.id)
+
+# Get the graph
+graph = client.get_transformed_graph(transform_id=transform.id)
+print(f"Extracted {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+```
+
+See the [Client Library documentation](/client/introduction) for the full API.

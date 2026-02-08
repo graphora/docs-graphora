@@ -1,0 +1,220 @@
+---
+title: 'Configuration'
+description: 'Environment variables and configuration options for the Graphora API.'
+---
+
+# Configuration
+
+Graphora is configured through environment variables. Copy `.env.example` to `.env` and set the values for your environment.
+
+```bash
+cp .env.example .env
+```
+
+## Minimal Configuration
+
+For local development with zero dependencies, you only need three variables:
+
+```bash
+STORAGE_TYPE=memory
+AUTH_BYPASS_ENABLED=true
+GOOGLE_GEMINI_API_KEY=your-key
+```
+
+Everything else has sensible defaults.
+
+---
+
+## Storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STORAGE_TYPE` | `neo4j` | Graph storage backend. `memory` for local dev, `neo4j` for production. |
+| `STORAGE_BATCH_SIZE` | `1000` | Batch size for storage operations. |
+| `STORAGE_RETRIES` | `3` | Number of retries for storage operations. |
+
+### Neo4j (Production)
+
+When `STORAGE_TYPE=neo4j`, configure the Neo4j connection through the Graphora UI Config page or via Supabase `database_configs` entries. The API supports staging and production database environments.
+
+### In-Memory (Development)
+
+When `STORAGE_TYPE=memory`, all graph data is stored in the running process. No database setup is required. Data is lost when the server stops.
+
+---
+
+## LLM Providers
+
+Configure at least one LLM provider for AI-powered extraction.
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_GEMINI_API_KEY` | Google AI Studio API key for Gemini models |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `DEEPSEEK_API_KEY` | DeepSeek API key |
+| `DEEPSEEK_BASE_URL` | DeepSeek API base URL (default: `https://api.deepseek.com`) |
+| `VERTEXAI_PROJECT_ID` | Google Cloud project ID for Vertex AI |
+| `VERTEXAI_LOCATION` | Vertex AI region (default: `us-central1`) |
+| `VERTEXAI_DEFAULT_MODEL` | Default Vertex AI model (default: `gemini-2.5-flash-lite-001`) |
+
+---
+
+## Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_BYPASS_ENABLED` | `false` | Skip Clerk authentication for local dev. **Never enable in production.** |
+| `AUTH_BYPASS_USER_ID` | `local-dev-user` | User ID used when auth bypass is enabled. |
+| `AUTH_BYPASS_EMAIL` | `dev@localhost` | Email used when auth bypass is enabled. |
+| `CLERK_JWKS_URL` | | URL to Clerk JWKS for token verification. Required in production. |
+| `CLERK_ISSUER` | | Expected issuer for Clerk tokens. |
+| `CLERK_AUDIENCE` | | Expected audience for Clerk tokens. |
+| `CLERK_API_KEY` | | Clerk backend API key for management operations. |
+
+---
+
+## API Server
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_PORT` | `8000` | Port for the API server. |
+| `PUBLIC_API_URL` | `http://localhost:8000` | Base URL exposed to clients and other apps. |
+| `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated list of allowed CORS origins. |
+| `LOG_LEVEL` | `INFO` | Application log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+
+---
+
+## Redis
+
+Redis is used for progress tracking during document transformations. It is **optional** -- when unavailable, the API falls back to an in-memory store automatically.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_HOST` | `localhost` | Redis host. |
+| `REDIS_PORT` | `6379` | Redis port. |
+| `REDIS_DB` | `0` | Redis database number. |
+| `REDIS_PASSWORD` | | Redis password (optional). |
+| `CACHE_TTL_HOURS` | `24` | Cache TTL in hours. |
+| `REDIS_RATE_LIMIT_DB` | `1` | Separate Redis database for rate limiting. |
+
+<Note>
+When Redis is unavailable, the progress tracker logs a warning and uses in-memory storage. This is expected behavior for local development without Docker.
+</Note>
+
+---
+
+## Prefect (Workflow Orchestration)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PREFECT_API_URL` | `http://127.0.0.1:4200/api` | Prefect API URL. |
+| `PREFECT_API_KEY` | | Prefect API key for authentication. |
+
+---
+
+## Database (Postgres)
+
+Postgres stores application configuration, audit logs, and AI provider settings.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | | Full PostgreSQL connection string. Takes precedence over individual vars. |
+| `POSTGRES_HOST` | `localhost` | Postgres host. |
+| `POSTGRES_PORT` | `5432` | Postgres port. |
+| `POSTGRES_DB` | `graphora` | Postgres database name. |
+| `POSTGRES_USER` | `graphora` | Postgres username. |
+| `POSTGRES_PASSWORD` | `graphora` | Postgres password. |
+
+---
+
+## Document Processing
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MAX_CHUNK_SIZE` | `32000` | Maximum size of a text chunk (characters). |
+| `MIN_CHUNK_SIZE` | `1000` | Minimum size of a text chunk. |
+| `MAX_CHUNKS_PER_DOC` | `100` | Maximum number of chunks per document. |
+| `SEMANTIC_THRESHOLD` | `0.7` | Threshold for semantic similarity in chunking. |
+| `EMBEDDING_MODEL` | `sentence-transformers/all-mpnet-base-v2` | Model for text embeddings. |
+| `TRANSFORM_MAX_CONCURRENCY` | `4` | Max concurrent LLM extractions per transform. |
+| `EXTRACTION_CONCURRENCY` | `5` | Concurrency for extraction tasks. |
+
+---
+
+## Quality Validation
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QUALITY_MIN_SCORE` | `85.0` | Minimum score required for auto-approval. |
+| `QUALITY_FAIL_SCORE` | `70.0` | Minimum score to proceed; below this the transform fails. |
+| `QUALITY_FAIL_ON_VIOLATION` | `true` | Fail the transform when violations are present and auto-approval is off. |
+
+---
+
+## Entity Resolution
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENTITY_RESOLUTION_EMBEDDING_ENABLED` | `true` | Enable embedding-based semantic similarity matching. |
+| `ENTITY_RESOLUTION_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Model for entity resolution embeddings. |
+| `ENTITY_RESOLUTION_SIMILARITY_THRESHOLD` | `0.85` | Minimum similarity threshold for entity matching. |
+| `ENTITY_RESOLUTION_CROSS_DOCUMENT_ENABLED` | `true` | Enable cross-document entity linking. |
+
+---
+
+## Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENCRYPTION_MASTER_KEY` | | Master encryption key for password encryption (base64 encoded). |
+
+---
+
+## File Paths
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPLOAD_DIR` | `/tmp/graphora/uploads` | Directory for uploaded files. |
+| `ONTOLOGY_DIR` | `~/.graphora/ontologies` | Directory for stored ontologies. |
+| `LOG_DIR` | `/tmp/graphora/logs` | Directory for log files. |
+
+---
+
+## Example Configurations
+
+### Local Development (Minimal)
+
+```bash
+STORAGE_TYPE=memory
+AUTH_BYPASS_ENABLED=true
+GOOGLE_GEMINI_API_KEY=your-key
+```
+
+### Local Development (Full Stack)
+
+```bash
+STORAGE_TYPE=neo4j
+AUTH_BYPASS_ENABLED=true
+GOOGLE_GEMINI_API_KEY=your-key
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+PREFECT_API_URL=http://127.0.0.1:4200/api
+DATABASE_URL=postgresql://graphora:graphora@localhost:5432/graphora
+```
+
+### Production
+
+```bash
+STORAGE_TYPE=neo4j
+AUTH_BYPASS_ENABLED=false
+GOOGLE_GEMINI_API_KEY=your-key
+CLERK_JWKS_URL=https://your-clerk-instance/.well-known/jwks.json
+CLERK_ISSUER=https://your-clerk-instance
+CLERK_AUDIENCE=your-audience
+REDIS_HOST=your-redis-host
+REDIS_PASSWORD=your-redis-password
+DATABASE_URL=postgresql://user:pass@host:5432/graphora
+ENCRYPTION_MASTER_KEY=your-base64-key
+LOG_LEVEL=WARNING
+```

@@ -5,7 +5,35 @@ description: "The knowledge graph platform for unstructured data"
 
 # Welcome to Graphora
 
-Graphora is a powerful graph-based data processing platform that enables you to transform unstructured data into structured knowledge graphs. With Graphora, you can extract meaningful insights from your documents, connect related information, and build a comprehensive knowledge base for your organization.
+Graphora transforms unstructured documents into structured knowledge graphs using AI. Define a schema (or let AI suggest one), upload documents, and get a queryable knowledge graph -- with built-in quality validation and human-in-the-loop review.
+
+## Get Started in Minutes
+
+Choose the path that works for you:
+
+<CardGroup cols={3}>
+  <Card
+    title="Try the Demo"
+    icon="play"
+    href="https://demo.graphora.io"
+  >
+    30 seconds. No signup. Upload a document and see extraction in action.
+  </Card>
+  <Card
+    title="Google Colab"
+    icon="flask"
+    href="https://colab.research.google.com/github/graphora/graphora-api/blob/main/examples/quickstart.ipynb"
+  >
+    2 minutes. Run the quickstart notebook in your browser.
+  </Card>
+  <Card
+    title="CLI"
+    icon="terminal"
+    href="/platform/cli"
+  >
+    5 minutes. Install the CLI and extract graphs from the command line.
+  </Card>
+</CardGroup>
 
 ## Key Features
 
@@ -17,42 +45,69 @@ Graphora is a powerful graph-based data processing platform that enables you to 
     Define custom ontologies to extract exactly the entities and relationships you need
   </Card>
   <Card
-    title="Document Processing"
-    icon="file-lines"
+    title="Schema Copilot"
+    icon="wand-magic-sparkles"
+    href="/platform/schema-copilot"
   >
-    Transform various document types into structured knowledge graphs
+    Build ontology schemas through natural language chat with AI
+  </Card>
+  <Card
+    title="Quality Validation"
+    icon="shield-check"
+  >
+    Automated scoring, violation reports, and human review before data reaches production
+  </Card>
+  <Card
+    title="Zero-Config Mode"
+    icon="bolt"
+    href="/platform/local-dev"
+  >
+    Start with in-memory storage -- no database setup required for local development
   </Card>
   <Card
     title="Graph Merging"
     icon="code-merge"
   >
-    Intelligently merge new data with existing knowledge graphs
+    Intelligently merge new data with existing knowledge graphs, with conflict resolution
   </Card>
   <Card
-    title="Python Client"
+    title="Python Client & CLI"
     icon="python"
+    href="/client/installation"
   >
-    Integrate Graphora into your data pipelines with our Python client
+    Integrate Graphora into your data pipelines or use the CLI for quick extractions
   </Card>
 </CardGroup>
 
-## Getting Started
-
-Get started with Graphora by exploring our client library:
+## Explore the Docs
 
 <CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Step-by-step guide to your first knowledge graph
+  </Card>
   <Card
     title="Client Library"
     icon="book-open"
     href="/client/introduction"
   >
-    Learn how to use the Graphora client library in your applications
+    Use the Python client to integrate Graphora into your applications
   </Card>
   <Card
-    title="Quickstart Guide"
-    icon="bolt"
-    href="/client/quickstart"
+    title="CLI Reference"
+    icon="terminal"
+    href="/platform/cli"
   >
-    Get up and running with Graphora in minutes
+    Extract knowledge graphs from the command line
+  </Card>
+  <Card
+    title="Configuration"
+    icon="gear"
+    href="/platform/configuration"
+  >
+    Environment variables, storage modes, and deployment options
   </Card>
 </CardGroup>
