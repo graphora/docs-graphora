@@ -1,11 +1,13 @@
 ---
 title: 'CLI Reference'
-description: 'Extract knowledge graphs from the command line with the Graphora CLI.'
+description: 'Extract, inspect, compare, and regression-test knowledge graphs from the command line.'
 ---
 
 # CLI Reference
 
-The Graphora CLI lets you extract knowledge graphs from documents directly from the command line. It includes an embedded mode that runs the extraction pipeline locally, so you do not need a separate server for basic usage.
+The Graphora CLI is a single binary that covers the full extract → inspect → compare → regression-test loop. It works in two modes: **embedded** (runs the extraction pipeline locally — only a Gemini API key required) and **remote** (talks to a Graphora API server, hosted or self-deployed).
+
+This page is the authoritative command reference. For end-to-end walkthroughs see the [Platform Quickstart](/platform/cli) and [Local Dev Guide](/platform/local-dev).
 
 ## Installation
 
@@ -13,181 +15,426 @@ The Graphora CLI lets you extract knowledge graphs from documents directly from 
 pip install graphora[cli]
 ```
 
-This installs both the `graphora` CLI command and the Python client library. Requires Python 3.9 or higher.
+This installs both the `graphora` CLI and the Python client library. Requires Python 3.9 or higher. To install just the client library without the CLI, omit the `[cli]` extra.
 
-To install the Python client library without the CLI:
-
-```bash
-pip install graphora
-```
-
-Verify the installation:
+Verify:
 
 ```bash
 graphora --version
 ```
 
+## Quick start
+
+```bash
+# 1. One-time setup — picks up a free Gemini key from Google AI Studio
+graphora config init --api-key "$GEMINI_API_KEY"
+
+# 2. Extract a graph (schema auto-inferred)
+graphora extract report.pdf -o graph.json
+
+# 3. (Remote mode only) inspect the result
+graphora explain tx_abc123 --node-id n_alice
+```
+
+## Commands at a glance
+
+| Command | Purpose |
+|---|---|
+| [`extract`](#graphora-extract) | Run extraction over one or more documents |
+| [`schema infer`](#graphora-schema-infer) | Generate an ontology from documents without extracting |
+| [`schema validate`](#graphora-schema-validate) | Lint an ontology YAML file |
+| [`explain`](#graphora-explain) | Show the evidence and decisions behind a node or edge |
+| [`diff`](#graphora-diff) | Compare two transforms — added / removed / changed |
+| [`scenario`](#scenarios) | Create and inspect named graph snapshots |
+| [`test`](#graphora-test) | Golden-corpus regression runner with F1 gating |
+| [`install`](#graphora-install) | Wire Graphora's MCP server into an agent client (Cursor, Claude Desktop, etc.) |
+| [`config`](#configuration) | Manage `~/.graphora/config.yaml` |
+| [`status`](#graphora-status) | Show current configuration and mode availability |
+| [`update`](#graphora-update) | Update the embedded-mode `graphora-api` binary |
+| [`init`](#graphora-init) | Shortcut for `graphora config init` |
+| [`version`](#graphora-version) | Print the CLI version |
+
+---
+
 ## Configuration
 
-Before extracting, configure your Gemini API key. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey):
+Config is stored at `~/.graphora/config.yaml`. The CLI also reads several environment variables — see [Environment variables](#environment-variables) below.
+
+### `graphora config init`
+
+Interactive setup. For embedded mode, `graphora-api` is auto-downloaded and cached on first use; you only need a Gemini API key.
 
 ```bash
-graphora config init --api-key "YOUR_GEMINI_API_KEY"
+graphora config init --api-key "$GEMINI_API_KEY"
+
+# Remote mode against a hosted server
+graphora config init --mode remote \
+  --api-url "https://api.graphora.io" \
+  --auth-token "$CLERK_JWT"
+
+# Local development against your own graphora-api clone
+graphora config init --api-path /path/to/graphora-api
 ```
 
-This saves the key to `~/.graphora/config.yaml`. You can also set it as an environment variable:
+| Option | Description |
+|---|---|
+| `--mode`, `-m` | `embedded` (default) or `remote` |
+| `--api-key`, `-k` | LLM API key (embedded mode) |
+| `--api-path`, `-p` | Custom path to a local `graphora-api` clone |
+
+### `graphora config set`
 
 ```bash
-export GEMINI_API_KEY="YOUR_KEY"
+graphora config set llm.api_key "your-key"
+graphora config set llm.model "gemini-1.5-pro"
+graphora config set defaults.mode "remote"
+graphora config set api.url "https://api.graphora.io"
 ```
 
-Other configuration commands:
+### `graphora config get` / `show` / `path`
 
 ```bash
-graphora config show          # Show all configuration
-graphora config set llm.model "gemini-2.0-flash"  # Change LLM model
-graphora status               # Check configuration status
+graphora config get llm.model          # one value
+graphora config show                   # all values, sensitive fields masked
+graphora config path                   # print the config file path
 ```
 
-## Basic Usage
+### `graphora init`
 
-### Extract entities and relationships from a document
+Shortcut for `graphora config init` with the two flags people set most often:
 
 ```bash
-graphora extract document.pdf --output graph.json
+graphora init --api-key "$GEMINI_API_KEY"
+graphora init --mode remote
 ```
 
-This processes the document and writes the extracted knowledge graph to `graph.json` as a JSON file containing nodes and edges.
+### `graphora status`
 
-### Supported file formats
+Reports the active mode, whether the embedded `graphora-api` binary is cached, and whether your API key / auth token are configured.
 
-The CLI supports the same document formats as the platform:
+```bash
+graphora status
+```
 
-- PDF (`.pdf`) -- processed with Gemini's native PDF handling for better OCR
-- Word (`.doc`, `.docx`)
-- Text (`.txt`)
-- Markdown (`.md`)
+---
 
-## Commands
+## Extracting graphs
 
 ### `graphora extract`
 
-Extract a knowledge graph from one or more documents.
+Run the extraction pipeline over one or more documents.
 
 ```bash
-graphora extract <file> [options]
+graphora extract <file...> [options]
 ```
-
-**Arguments:**
 
 | Argument | Description |
-|----------|-------------|
-| `<file>` | Path to the document to process |
-
-**Options:**
+|---|---|
+| `files` | One or more document files or directories (recurses) |
 
 | Option | Description |
-|--------|-------------|
+|---|---|
 | `--output`, `-o` | Output file path (default: `graph.json`) |
-| `--schema`, `-s` | Path to an ontology YAML file to guide extraction |
+| `--schema`, `-s` | Ontology YAML file (auto-inferred if omitted) |
 | `--format`, `-f` | Output format: `json` (default) or `cypher` |
-| `--api-key`, `-k` | LLM API key (overrides config) |
-| `--mode`, `-m` | Execution mode: `embedded` or `remote` |
+| `--api-key`, `-k` | LLM API key (embedded mode only; env: `GRAPHORA_API_KEY`) |
+| `--mode`, `-m` | Override the configured execution mode |
 | `--verbose`, `-v` | Show detailed progress |
 
-### Examples
-
-**Extract with an ontology:**
-
 ```bash
-graphora extract report.pdf \
-  --schema schema.yaml \
-  --output graph.json
+# Single document, auto-inferred schema
+graphora extract report.pdf -o graph.json
+
+# Use an explicit ontology
+graphora extract report.pdf --schema ontology.yaml -o graph.json
+
+# Multiple documents combined into one graph
+graphora extract doc1.pdf doc2.pdf docs/ -o combined.json
+
+# Cypher output for Neo4j import
+graphora extract report.pdf -f cypher -o import.cypher
+
+# Force remote mode for a one-off
+graphora extract report.pdf --mode remote
 ```
 
-**Extract without an ontology (auto-inferred schema):**
-
-```bash
-graphora extract report.pdf --output graph.json
-```
-
-When no schema is provided, Graphora uses AI to infer an appropriate schema from the document content.
-
-**Extract multiple files:**
-
-```bash
-graphora extract doc1.pdf doc2.pdf --output combined.json
-```
-
-**Extract to Cypher format for Neo4j:**
-
-```bash
-graphora extract report.pdf --format cypher --output import.cypher
-```
+Supported file formats: PDF (`.pdf`, processed with Gemini's native OCR), Word (`.doc`, `.docx`), text (`.txt`), markdown (`.md`).
 
 ### `graphora schema infer`
 
-Infer an ontology schema from documents without performing a full extraction.
+Generate an ontology YAML from documents without performing a full extraction. Useful as a starting point before extraction, or to diff against an existing schema.
 
 ```bash
-graphora schema infer document.pdf --output ontology.yaml
+graphora schema infer document.pdf -o ontology.yaml
+graphora schema infer doc1.pdf doc2.pdf -o combined-schema.yaml
 ```
+
+| Option | Description |
+|---|---|
+| `--output`, `-o` | Output file path (default: `ontology.yaml`) |
+| `--api-key`, `-k` | LLM API key (env: `GRAPHORA_API_KEY`) |
+| `--verbose`, `-v` | Show detailed progress |
 
 ### `graphora schema validate`
 
-Validate an ontology YAML file.
+Lint an ontology YAML for structural correctness and common issues. Exits non-zero on validation failure — safe to wire into pre-commit hooks.
 
 ```bash
 graphora schema validate ontology.yaml
+graphora schema validate ontology.yaml -v   # verbose
 ```
 
-## Embedded Mode
+---
 
-The CLI runs in embedded mode by default. This means it starts a lightweight version of the Graphora API in-process, without needing a running server. This is convenient for:
+## Inspecting graphs
 
-- Quick one-off extractions
-- CI/CD pipelines
-- Scripting and automation
-- Evaluating Graphora without infrastructure setup
+The next three commands require **remote mode** — they talk to a Graphora API server (hosted or your own deployment) and need an auth token.
 
-No database, Redis, or external services are required for embedded mode.
+### `graphora explain`
 
-## Using with the Hosted API
-
-To use the CLI against the hosted Graphora API (or your own deployment) instead of embedded mode, set the environment variables:
+Show the source-span evidence and decision-log trail behind a single node or edge. Renders the originating text + document, the schema-inference / merge / accept-reject decisions the pipeline emitted, and any alternatives considered.
 
 ```bash
-export GRAPHORA_API_URL="https://api.graphora.io"
-export GRAPHORA_AUTH_TOKEN="your-clerk-jwt"
-
-graphora extract document.pdf --output graph.json
+graphora explain <transform-id> --node-id <node-id>
+graphora explain <transform-id> --edge-id <edge-id>
 ```
 
-## Python Client Library
+| Argument | Description |
+|---|---|
+| `transform_id` | Transform ID the node or edge belongs to |
 
-The CLI is built on top of the Python client library. For programmatic access, you can use the library directly:
+| Option | Description |
+|---|---|
+| `--node-id`, `-n` | Node ID to explain (mutually exclusive with `--edge-id`) |
+| `--edge-id`, `-e` | Edge ID to explain |
+| `--json` | Emit raw JSON evidence payload (default: formatted view) |
+| `--api-url` | Override base URL (env: `GRAPHORA_API_URL`) |
+| `--auth-token` | Override auth token (env: `GRAPHORA_AUTH_TOKEN`) |
+
+```bash
+graphora explain tx_abc123 --node-id n_alice
+graphora explain tx_abc123 --edge-id e_works_at --json > evidence.json
+```
+
+### `graphora diff`
+
+Compare two transforms and show added / removed / changed nodes and edges, with a summary table plus per-section detail tables.
+
+```bash
+graphora diff <base-transform-id> <compare-transform-id>
+```
+
+| Option | Description |
+|---|---|
+| `--json` | Emit the raw diff payload (same shape as the `/diff` endpoint) |
+| `--show-unchanged` | Include unchanged counts in the summary (off by default) |
+| `--limit`, `-n` | Per-section row cap on the detail tables (default: 20) |
+
+```bash
+graphora diff tx-old tx-new
+graphora diff tx-old tx-new --show-unchanged
+graphora diff tx-old tx-new --json | jq '.summary'
+graphora diff tx-old tx-new -n 5            # tighter detail tables
+```
+
+Each entry in the *changed* section expands to one row per property change, so the rendered row count can exceed `--limit` when entries have multiple changes. `--json` always emits the full set.
+
+---
+
+## Scenarios
+
+A **scenario** is a named point-in-time snapshot of a transform's extracted graph. Scenarios are useful for branching what-if comparisons before publishing, or for pinning a known-good state before running a destructive merge.
+
+### `graphora scenario create`
+
+```bash
+graphora scenario create -t <transform-id> -n <name> [-d <description>]
+```
+
+| Option | Description |
+|---|---|
+| `--transform-id`, `-t` | **Required.** Transform whose graph will be snapshotted |
+| `--name`, `-n` | **Required.** Scenario name. Must be unique per (you, transform_id) — duplicates return 409 |
+| `--description`, `-d` | Optional free-form note |
+| `--json` | Emit the full scenario record (including embedded snapshot) as JSON |
+
+```bash
+graphora scenario create -t tx-abc -n baseline
+graphora scenario create -t tx-abc -n "merge-alice-alicia" -d "what-if ER"
+```
+
+### `graphora scenario list`
+
+```bash
+graphora scenario list
+graphora scenario list --json
+```
+
+Lightweight summary view (counts only, no embedded graph). Use `scenario show` to fetch the full record.
+
+### `graphora scenario show`
+
+```bash
+graphora scenario show <scenario-id>
+graphora scenario show sc-abc123 --json | jq '.graph.nodes | length'
+```
+
+### `graphora scenario delete`
+
+```bash
+graphora scenario delete <scenario-id>          # interactive confirm
+graphora scenario delete <scenario-id> --yes    # non-interactive (CI)
+```
+
+The server's delete is intentionally non-idempotent — a 404 fires when the scenario doesn't exist *or* belongs to another user. Same posture as `explain` and `diff` on cross-tenant access.
+
+---
+
+## Regression testing
+
+### `graphora test`
+
+Run a golden-corpus regression test against a Graphora API. For each subdirectory under `<corpus-path>`, the runner registers `ontology.yaml`, uploads `document.txt`, waits for extraction to complete, then `POST`s the live `transform_id` plus `expected.json` to `/api/v1/golden/score` and records the report.
+
+```bash
+graphora test <corpus-path> [options]
+```
+
+| Option | Description |
+|---|---|
+| `--min-f1` | Minimum F1 score required for exit 0. Applied to both `nodes.f1` and `edges.f1` of each entry. Default `0.0` makes the runner informational |
+| `--output`, `-o` | Write full per-doc report set + summary to a JSON file |
+| `--json` | Emit aggregated report set to stdout as JSON (instead of the Rich table) |
+
+```bash
+graphora test golden/                        # informational
+graphora test golden/ --min-f1 0.6           # gate at F1 >= 0.6
+graphora test golden/ --json > report.json
+graphora test golden/ -o report.json --min-f1 0.5
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|---|---|
+| `0` | Every doc's `nodes.f1` and `edges.f1` met `--min-f1` |
+| `1` | At least one doc fell below the threshold |
+| `2` | Configuration / corpus problem (no docs, missing credentials, etc.) |
+
+Each subdirectory under `<corpus-path>` must contain `document.txt`, `ontology.yaml`, and `expected.json` to count as a corpus entry. Other subdirectories are skipped silently.
+
+---
+
+## MCP integration
+
+### `graphora install`
+
+Wire Graphora's MCP server into an agent client's config so the agent can call `graphora-mcp` tools directly.
+
+```bash
+graphora install <client> [options]
+```
+
+| Argument | Description |
+|---|---|
+| `client` | One of: `claude-code`, `claude-desktop`, `codex`, `cursor`, `vscode` |
+
+| Option | Description |
+|---|---|
+| `--api-url` | Graphora API URL the MCP server will talk to. Falls back to `graphora config init` / `GRAPHORA_API_URL` |
+| `--auth-token` | Auth token for the API. Falls back to config / `GRAPHORA_AUTH_TOKEN`. Pass an empty string (or skip) when the server has auth bypass enabled |
+| `--command` | Path to the `graphora-mcp` executable (default: unqualified `graphora-mcp`, relying on `PATH`). Use an absolute path when your agent client launches from a shell that doesn't include the install directory |
+| `--workspace` | Workspace root for workspace-relative configs (`cursor` / `vscode` / `codex` / `claude-code`). Defaults to the current directory. Ignored for `claude-desktop`, which is user-global |
+| `--force` | Overwrite the existing config file instead of merging the `graphora` entry into `mcpServers`. **Destructive** — wipes other MCP server entries |
+| `--dry-run` | Print the resulting config to stdout without writing |
+
+```bash
+# Workspace-relative install for Cursor
+graphora install cursor
+
+# User-global install for Claude Desktop
+graphora install claude-desktop
+
+# Preview without writing
+graphora install cursor --dry-run
+
+# One-off against a local API
+graphora install cursor \
+  --api-url http://localhost:8000 \
+  --auth-token "$JWT"
+```
+
+The `cursor`, `vscode`, `codex`, and `claude-code` clients write to the workspace; `claude-desktop` writes to the user-global config. Existing `mcpServers` entries are preserved unless you pass `--force`.
+
+---
+
+## Maintenance
+
+### `graphora update`
+
+Update the embedded-mode `graphora-api` binary by re-downloading from GitHub.
+
+```bash
+graphora update
+graphora update --channel nightly
+graphora update --version v1.2.0
+graphora update --force                # re-download even if up to date
+```
+
+| Option | Description |
+|---|---|
+| `--channel`, `-c` | `stable` (default), `nightly`, or `main` |
+| `--version`, `-v` | Specific version to install (e.g., `v1.2.0`) |
+| `--force`, `-f` | Force re-download even when up to date |
+
+### `graphora version`
+
+```bash
+graphora version
+```
+
+Prints the installed `graphora` CLI version. Equivalent to `graphora --version`.
+
+---
+
+## Embedded vs remote mode
+
+| Mode | What runs locally | Requirements |
+|---|---|---|
+| **embedded** (default) | The full extraction pipeline — `graphora-api` runs in-process | Gemini API key only |
+| **remote** | Just the client — extraction runs on the server | API URL + auth token |
+
+**Embedded mode** is recommended for one-off extractions, CI pipelines, and evaluation. No database, Redis, or external services needed; `graphora-api` is auto-downloaded on first use and cached at `~/.graphora/api/`.
+
+**Remote mode** is required for the `explain`, `diff`, `scenario`, and `test` commands, since those depend on server-side state (transform IDs, scenario storage, the golden-scoring endpoint). Configure it once with `graphora config init --mode remote`.
+
+## Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | LLM API key for embedded mode |
+| `GRAPHORA_API_KEY` | Alternative to `GEMINI_API_KEY` (used by `extract` / `schema infer`) |
+| `GRAPHORA_API_URL` | Base URL for remote-mode commands |
+| `GRAPHORA_AUTH_TOKEN` | Clerk-issued bearer token for remote mode |
+
+Precedence for `--api-url` / `--auth-token`: explicit flag > environment variable > `~/.graphora/config.yaml`.
+
+## Python client library
+
+The CLI is built on top of the Python client. For programmatic access:
 
 ```python
 from graphora import GraphoraClient
 
 client = GraphoraClient()
 
-# Register an ontology
 with open("ontology.yaml") as f:
     ontology = client.register_ontology(f.read())
 
-# Transform a document
-transform = client.transform(
-    ontology_id=ontology.id,
-    files=["document.pdf"]
-)
-
-# Wait for completion
+transform = client.transform(ontology_id=ontology.id, files=["document.pdf"])
 status = client.wait_for_transform(transform.id)
-
-# Get the graph
 graph = client.get_transformed_graph(transform_id=transform.id)
 print(f"Extracted {len(graph.nodes)} nodes and {len(graph.edges)} edges")
 ```
 
-See the [Client Library documentation](/client/introduction) for the full API.
+See the [Client Library documentation](/client/introduction) for the full API surface.
