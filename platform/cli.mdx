@@ -171,6 +171,16 @@ graphora extract report.pdf --mode remote
 
 The parser sniffs by file extension. Directories passed to `graphora extract` are recursed; files with unsupported extensions are skipped silently.
 
+**Behind the scenes — schema modes.** `graphora extract` is a thin wrapper over three API paths, picked by the `--schema` / `--mode` flags:
+
+| CLI invocation | API path | Schema posture |
+|---|---|---|
+| `graphora extract doc.pdf` (no `--schema`) | `POST /transform/upload` | Auto-infer ontology from document content before extracting |
+| `graphora extract doc.pdf --schema ontology.yaml` | `POST /transform/{ontology_id}/upload` | Use the registered ontology to bias extraction |
+| (programmatic) | `POST /transform/schemaless/upload` | Extract with generic schema, refine ontology post-hoc |
+
+See [API Reference — Extraction modes](/api-reference/introduction#extraction-modes) for the full posture comparison and when to pick each.
+
 ### `graphora schema infer`
 
 Generate an ontology YAML from documents without performing a full extraction. Useful as a starting point before extraction, or to diff against an existing schema.

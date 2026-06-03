@@ -112,6 +112,325 @@
         "title": "ApprovalRequest",
         "type": "object"
       },
+      "BackendCapabilities": {
+        "description": "Runtime-or-static feature flags for a graph storage backend.\n\nBoolean flags only \u2014 each one answers \"would calling this\ncapability today succeed?\" with True/False. The matrix view\nreports the static default; live instances may diverge for\nflags listed in the parent ``BackendMatrixEntry.dynamic_flags``.",
+        "properties": {
+          "embedding_similarity": {
+            "description": "True if vector-distance similarity is wired (not just property-string fuzzy match). False on every backend today; flips True per-backend as embedding wiring lands upstream.",
+            "title": "Embedding Similarity",
+            "type": "boolean"
+          },
+          "full_text_indexes": {
+            "description": "True if create_or_replace_ft_index_* creates a real index. False means the methods are no-op or unavailable; CONTAINS-style query correctness is preserved (scan fallback), only performance differs.",
+            "title": "Full Text Indexes",
+            "type": "boolean"
+          },
+          "per_user_routing": {
+            "description": "True if UserDatabaseService carries per-user staging/prod connection details for this backend. False on single-tenant Postgres and in-memory.",
+            "title": "Per User Routing",
+            "type": "boolean"
+          },
+          "persistent": {
+            "description": "True if the backend survives process restart. False for in-memory; True for any backend that writes to disk or a remote database.",
+            "title": "Persistent",
+            "type": "boolean"
+          },
+          "similarity_search": {
+            "description": "True if find_similar_nodes returns real candidate matches. False means it returns an empty list \u2014 callers should treat as 'no fuzzy fallback'.",
+            "title": "Similarity Search",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "persistent",
+          "full_text_indexes",
+          "similarity_search",
+          "embedding_similarity",
+          "per_user_routing"
+        ],
+        "title": "BackendCapabilities",
+        "type": "object"
+      },
+      "BackendMatrixEntry": {
+        "description": "One row in the M-matrix.\n\n``name`` matches the ``STORAGE_TYPE`` setting that selects the\nbackend. ``dynamic_flags`` lists which capability fields are\nNOT guaranteed by the static default \u2014 the runtime adapter\ninstance's ``capabilities`` property may report higher than\nthe matrix-reported default. ``extras`` is the pip extra to\ninstall (empty tuple = no extra needed).",
+        "properties": {
+          "default_capabilities": {
+            "$ref": "#/components/schemas/BackendCapabilities",
+            "description": "Conservative/static capability set \u2014 the safe floor. Live instances may report higher values for fields listed in ``dynamic_flags``."
+          },
+          "display_name": {
+            "description": "Operator-facing label for the backend.",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "dynamic_flags": {
+            "description": "Capability field names whose runtime value depends on instance detection (e.g., AGE's ``full_text_indexes`` depends on pg_trgm install). Frontend matrix renderers should annotate these cells as 'depends on runtime detection'.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dynamic Flags",
+            "type": "array"
+          },
+          "extras": {
+            "description": "Pip extras required to install this backend. Compose into ``pip install 'graphora-server[X]'`` for the install hint. Empty list = no extra needed.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Extras",
+            "type": "array"
+          },
+          "name": {
+            "description": "STORAGE_TYPE value that selects this backend (e.g., 'neo4j', 'postgres', 'memory').",
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "description": "Human-readable caveats that don't fit in boolean flags (deployment requirements, multi-tenant gaps, etc.). Rendered as footnotes on the matrix page.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "default_capabilities"
+        ],
+        "title": "BackendMatrixEntry",
+        "type": "object"
+      },
+      "BenchEntryScore": {
+        "description": "One extractor's score on one corpus entry.\n\nMatches ``services.bench.models.BenchEntryScore`` field-for-\nfield. ``error`` is set when the runner couldn't score this\nentry (missing actual.json, malformed shape, etc.); when\nnon-None the numeric fields are zeroed and the entry is\nexcluded from the extractor's aggregate. The frontend\ndistinguishes \"extractor failed on this doc\" from \"extractor\nscored 0 on this doc\" via this field \u2014 both look like zero\nF1 otherwise.",
+        "properties": {
+          "corpus_slug": {
+            "title": "Corpus Slug",
+            "type": "string"
+          },
+          "edge_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Edge F1",
+            "type": "number"
+          },
+          "edge_false_negatives": {
+            "minimum": 0.0,
+            "title": "Edge False Negatives",
+            "type": "integer"
+          },
+          "edge_false_positives": {
+            "minimum": 0.0,
+            "title": "Edge False Positives",
+            "type": "integer"
+          },
+          "edge_precision": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Edge Precision",
+            "type": "number"
+          },
+          "edge_recall": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Edge Recall",
+            "type": "number"
+          },
+          "edge_true_positives": {
+            "minimum": 0.0,
+            "title": "Edge True Positives",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Failure reason when this (extractor, slug) pair couldn't be scored. ``None`` means scoring succeeded. Coverage gaps (missing extractor output for a corpus entry) surface here rather than as silent zero-F1 rows so the denominator stays honest.",
+            "title": "Error"
+          },
+          "node_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Node F1",
+            "type": "number"
+          },
+          "node_false_negatives": {
+            "minimum": 0.0,
+            "title": "Node False Negatives",
+            "type": "integer"
+          },
+          "node_false_positives": {
+            "minimum": 0.0,
+            "title": "Node False Positives",
+            "type": "integer"
+          },
+          "node_precision": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Node Precision",
+            "type": "number"
+          },
+          "node_recall": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Node Recall",
+            "type": "number"
+          },
+          "node_true_positives": {
+            "minimum": 0.0,
+            "title": "Node True Positives",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "corpus_slug",
+          "node_precision",
+          "node_recall",
+          "node_f1",
+          "edge_precision",
+          "edge_recall",
+          "edge_f1",
+          "node_true_positives",
+          "node_false_positives",
+          "node_false_negatives",
+          "edge_true_positives",
+          "edge_false_positives",
+          "edge_false_negatives"
+        ],
+        "title": "BenchEntryScore",
+        "type": "object"
+      },
+      "BenchExtractorReport": {
+        "description": "Aggregated scores for one extractor across the full corpus.\n\nBoth micro (entity-count weighted) and macro (per-doc mean)\nF1 surface so consumers can pick the right headline. Micro\nanswers \"across all the entities, what fraction did the\nextractor get right?\" \u2014 a 50-node doc dominates a 3-node\ndoc. Macro asks \"across all the docs, what's the average per-\ndoc F1?\" \u2014 every doc gets equal weight. An extractor that\nwins on micro but loses on macro is strong on dense docs and\nweak on sparse ones; the headline F1 alone would hide that.\n\n``errored_count`` is required (not optional with a default)\nso OpenAPI consumers can't treat it as ignorable. It's the\nload-bearing signal for distinguishing \"writer healthy\" from\n\"writer missing data for some entries\" \u2014 the same posture as\n``total_claims_scanned`` on the contradictions surface\n(reviewer-flagged Medium on commit 86c1dbd / 66987b2).",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/BenchEntryScore"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "errored_count": {
+            "description": "Number of corpus entries the extractor failed to score (missing output, malformed JSON, etc.). Required field \u2014 callers must NOT treat it as optional, since collapsing errored + scored into one bucket hides coverage gaps.",
+            "minimum": 0.0,
+            "title": "Errored Count",
+            "type": "integer"
+          },
+          "extractor_name": {
+            "title": "Extractor Name",
+            "type": "string"
+          },
+          "macro_edge_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Macro Edge F1",
+            "type": "number"
+          },
+          "macro_node_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Macro Node F1",
+            "type": "number"
+          },
+          "micro_edge_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Edge F1",
+            "type": "number"
+          },
+          "micro_edge_precision": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Edge Precision",
+            "type": "number"
+          },
+          "micro_edge_recall": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Edge Recall",
+            "type": "number"
+          },
+          "micro_node_f1": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Node F1",
+            "type": "number"
+          },
+          "micro_node_precision": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Node Precision",
+            "type": "number"
+          },
+          "micro_node_recall": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Micro Node Recall",
+            "type": "number"
+          },
+          "scored_count": {
+            "minimum": 0.0,
+            "title": "Scored Count",
+            "type": "integer"
+          },
+          "total_entries": {
+            "minimum": 0.0,
+            "title": "Total Entries",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "extractor_name",
+          "total_entries",
+          "scored_count",
+          "errored_count",
+          "micro_node_precision",
+          "micro_node_recall",
+          "micro_node_f1",
+          "micro_edge_precision",
+          "micro_edge_recall",
+          "micro_edge_f1",
+          "macro_node_f1",
+          "macro_edge_f1",
+          "entries"
+        ],
+        "title": "BenchExtractorReport",
+        "type": "object"
+      },
+      "BenchRunReport": {
+        "description": "Top-level public benchmark report. One ``extractors`` row\nper ``bench/results/<extractor>/`` directory.\n\n``corpus_size`` is the discovered count of ``golden/<slug>/``\nentries \u2014 exposed so frontend consumers can render \"N of M\nentries scored\" without computing it from ``entries``.",
+        "properties": {
+          "corpus_size": {
+            "minimum": 0.0,
+            "title": "Corpus Size",
+            "type": "integer"
+          },
+          "extractor_count": {
+            "minimum": 0.0,
+            "title": "Extractor Count",
+            "type": "integer"
+          },
+          "extractors": {
+            "items": {
+              "$ref": "#/components/schemas/BenchExtractorReport"
+            },
+            "title": "Extractors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "corpus_size",
+          "extractor_count",
+          "extractors"
+        ],
+        "title": "BenchRunReport",
+        "type": "object"
+      },
       "Body_upload_documents_api_v1_transform__ontology_id__upload_post": {
         "properties": {
           "chunking_config": {
@@ -128,7 +447,7 @@
           },
           "files": {
             "items": {
-              "format": "binary",
+              "contentMediaType": "application/octet-stream",
               "type": "string"
             },
             "title": "Files",
@@ -139,6 +458,194 @@
           "files"
         ],
         "title": "Body_upload_documents_api_v1_transform__ontology_id__upload_post",
+        "type": "object"
+      },
+      "Body_upload_documents_auto_schema_api_v1_transform_upload_post": {
+        "properties": {
+          "auto_schema": {
+            "default": true,
+            "description": "Auto-generate schema from document content",
+            "title": "Auto Schema",
+            "type": "boolean"
+          },
+          "chunking_config": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON string of chunking configuration",
+            "title": "Chunking Config"
+          },
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_documents_auto_schema_api_v1_transform_upload_post",
+        "type": "object"
+      },
+      "Body_upload_documents_schemaless_api_v1_transform_schemaless_upload_post": {
+        "properties": {
+          "chunking_config": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON string of chunking configuration",
+            "title": "Chunking Config"
+          },
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_documents_schemaless_api_v1_transform_schemaless_upload_post",
+        "type": "object"
+      },
+      "BudgetResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "monthly_cap_usd": {
+            "description": "Cap as a string for Decimal precision \u2014 same convention as /cost's estimated_cost_usd.",
+            "title": "Monthly Cap Usd",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "monthly_cap_usd"
+        ],
+        "title": "BudgetResponse",
+        "type": "object"
+      },
+      "BudgetStatusResponse": {
+        "properties": {
+          "cap_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cap Usd"
+          },
+          "current_spend_usd": {
+            "description": "Spend rolled up from llm_usage in the current period, as a string for Decimal precision.",
+            "title": "Current Spend Usd",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "state": {
+            "description": "One of: unset, under, near, over",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "current_spend_usd",
+          "period_start",
+          "period_end"
+        ],
+        "title": "BudgetStatusResponse",
+        "type": "object"
+      },
+      "BudgetWriteRequest": {
+        "description": "Body shape for PUT /budgets/me. Pydantic's Decimal type\naccepts JSON numbers and strings; the service layer enforces\nnon-negative via a CHECK constraint at the DB layer as\ndefense-in-depth.",
+        "properties": {
+          "monthly_cap_usd": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Monthly spend cap in USD. 0 blocks all spend.",
+            "title": "Monthly Cap Usd"
+          }
+        },
+        "required": [
+          "monthly_cap_usd"
+        ],
+        "title": "BudgetWriteRequest",
+        "type": "object"
+      },
+      "CapabilityMatrixResponse": {
+        "description": "Wire envelope for ``GET /api/v1/capabilities/matrix``.\n\nThe list is ordered the way the matrix table should render \u2014\nreference backend (Neo4j) first, then alternatives, then\ndev/demo. Frontend consumers should preserve order rather\nthan re-sort.",
+        "properties": {
+          "backends": {
+            "description": "Per-backend capability rows; render order matters.",
+            "items": {
+              "$ref": "#/components/schemas/BackendMatrixEntry"
+            },
+            "title": "Backends",
+            "type": "array"
+          }
+        },
+        "required": [
+          "backends"
+        ],
+        "title": "CapabilityMatrixResponse",
         "type": "object"
       },
       "ChangeLog": {
@@ -224,6 +731,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -265,6 +773,7 @@
             "type": "array"
           },
           "session_context": {
+            "additionalProperties": true,
             "description": "Session context",
             "title": "Session Context",
             "type": "object"
@@ -300,6 +809,7 @@
             "type": "object"
           },
           "chunking_estimate": {
+            "additionalProperties": true,
             "title": "Chunking Estimate",
             "type": "object"
           },
@@ -308,6 +818,7 @@
             "type": "number"
           },
           "document_stats": {
+            "additionalProperties": true,
             "title": "Document Stats",
             "type": "object"
           },
@@ -527,23 +1038,165 @@
         "title": "ChunkingTestResponse",
         "type": "object"
       },
-      "ConfigRequest": {
-        "description": "Schema for creating/updating user configuration",
+      "Claim": {
+        "description": "One extractor's assertion about a target's property.\n\nMatches the service-layer ``Claim`` dataclass field-for-field\nso JSON serialization roundtrips cleanly. The\n``target_kind`` field is the string value (``\"node\"`` /\n``\"edge\"``) rather than the enum, mirroring how the wire\nsurfaces the same enum elsewhere (Decision Log endpoints).",
         "properties": {
-          "prodDb": {
-            "$ref": "#/components/schemas/DatabaseConfig",
-            "description": "Production database configuration"
+          "confidence": {
+            "description": "Extractor-reported confidence in [0.0, 1.0].",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
           },
-          "stagingDb": {
-            "$ref": "#/components/schemas/DatabaseConfig",
-            "description": "Staging database configuration"
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "property_key": {
+            "title": "Property Key",
+            "type": "string"
+          },
+          "source_chunk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Chunk Id"
+          },
+          "source_extractor_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Extractor Model"
+          },
+          "source_prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Prompt Version"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "description": "``node`` or ``edge`` \u2014 the kind of target this claim is about.",
+            "title": "Target Kind",
+            "type": "string"
+          },
+          "transform_id": {
+            "title": "Transform Id",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "value": {
+            "description": "The claimed property value. JSON-serializable; can be a string, number, list, or nested object.",
+            "title": "Value"
           }
         },
         "required": [
-          "stagingDb",
-          "prodDb"
+          "id",
+          "transform_id",
+          "target_id",
+          "target_kind",
+          "property_key",
+          "value",
+          "confidence"
         ],
+        "title": "Claim",
+        "type": "object"
+      },
+      "ConfigRequest": {
+        "description": "Schema for creating user configuration.\n\nAt least one database (staging or production) must be provided.\nStaging DB is optional (system uses in-memory storage if not configured).\nProduction DB is required for merge operations.",
+        "properties": {
+          "prodDb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Production database configuration (required for merge operations)"
+          },
+          "stagingDb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staging database configuration (optional - uses in-memory if not set)"
+          }
+        },
         "title": "ConfigRequest",
+        "type": "object"
+      },
+      "ConfigUpdateRequest": {
+        "description": "Schema for updating user configuration (password optional).",
+        "properties": {
+          "prodDb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfigUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Production database configuration"
+          },
+          "stagingDb": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfigUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staging database configuration"
+          }
+        },
+        "title": "ConfigUpdateRequest",
         "type": "object"
       },
       "ConnectionTestRequest": {
@@ -601,6 +1254,83 @@
           "message"
         ],
         "title": "ConnectionTestResponse",
+        "type": "object"
+      },
+      "Contradiction": {
+        "description": "A (target, property) pair carrying multiple distinct claimed values.\n\nA group with 2+ distinct values above the\n``min_confidence`` floor surfaces as a contradiction; the\n``competing_claims`` list is sorted by confidence DESC so the\n\"winning\" value is the first entry.\n\n``severity`` is the distinct-value count \u2014 a heuristic on\n\"how many alternative values disagree on this property.\" A\nslice 3 refinement may swap to a confidence-weighted entropy\nmeasure once enough real data lands; the wire shape stays the\nsame (severity is just an int).",
+        "properties": {
+          "competing_claims": {
+            "description": "All claims about this (target, property) above the confidence floor, sorted by confidence DESC. The first entry is the 'winning' claim the pipeline picked; the rest are alternatives the contradiction detector wants you to know about.",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "title": "Competing Claims",
+            "type": "array"
+          },
+          "property_key": {
+            "title": "Property Key",
+            "type": "string"
+          },
+          "severity": {
+            "description": "Distinct-value count (always >= 2 \u2014 single-value groups don't surface as contradictions).",
+            "minimum": 2.0,
+            "title": "Severity",
+            "type": "integer"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_id",
+          "target_kind",
+          "property_key",
+          "competing_claims",
+          "severity"
+        ],
+        "title": "Contradiction",
+        "type": "object"
+      },
+      "ContradictionsResponse": {
+        "description": "Wire envelope for GET /api/v1/graph/{tx}/contradictions.\n\nThe envelope (rather than a bare list) gives room for future\npagination + summary stats without breaking the wire\ncontract. The shape mirrors the diff endpoint's response\npattern \u2014 a summary at the top, the per-item list below.",
+        "properties": {
+          "contradictions": {
+            "items": {
+              "$ref": "#/components/schemas/Contradiction"
+            },
+            "title": "Contradictions",
+            "type": "array"
+          },
+          "min_confidence": {
+            "default": 0.0,
+            "description": "Confidence floor applied to the underlying claim set.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Confidence",
+            "type": "number"
+          },
+          "total_claims_scanned": {
+            "description": "Total claims for this transform at/above ``min_confidence`` \u2014 NOT just the ones inside contradiction groups. Lets callers tell apart 'no writer yet' (count=0) from 'writer healthy, consistent data' (count>0, contradictions empty). Required (not optional with default=0) \u2014 this is the load-bearing signal for distinguishing the two empty-contradictions states; OpenAPI consumers treating it as optional would write conditional access logic that hides the signal. Reviewer-flagged Low on commit 86c1dbd: pre-fix this was ``default=0`` so generated clients saw an optional field. Reviewer-flagged Medium on commit 66987b2: pre-fix this counted only claims inside contradictions, collapsing both empty states to 0 once slice 2b's writer lands.",
+            "minimum": 0.0,
+            "title": "Total Claims Scanned",
+            "type": "integer"
+          },
+          "transform_id": {
+            "title": "Transform Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transform_id",
+          "contradictions",
+          "total_claims_scanned"
+        ],
+        "title": "ContradictionsResponse",
         "type": "object"
       },
       "CreateSchemaRequest": {
@@ -1011,6 +1741,67 @@
         "title": "DatabaseConfig",
         "type": "object"
       },
+      "DatabaseConfigUpdate": {
+        "description": "Schema for updating Neo4j configuration; fields optional.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "title": "DatabaseConfigUpdate",
+        "type": "object"
+      },
+      "Decision": {
+        "description": "Inputs from the operator/agent when labeling. The service\ntranslates these to the matching status values. Skip is a\nvalid decision \u2014 operators may legitimately defer a pair\nthey don't have enough context for, and we track that\nseparately from \"labeled\" so the queue surface can\ndistinguish \"reviewed\" from \"skipped-for-now\".",
+        "enum": [
+          "match",
+          "not_match",
+          "skip"
+        ],
+        "title": "Decision",
+        "type": "string"
+      },
       "DetailedTransformStatus": {
         "description": "Detailed transformation status",
         "properties": {
@@ -1051,6 +1842,7 @@
             "title": "Failure Code"
           },
           "failure_details": {
+            "additionalProperties": true,
             "title": "Failure Details",
             "type": "object"
           },
@@ -1065,7 +1857,7 @@
             ]
           },
           "overall_status": {
-            "$ref": "#/components/schemas/app__services__transform__status_models__TransformStatus"
+            "$ref": "#/components/schemas/graphora_server__services__transform__status_models__TransformStatus"
           },
           "resource_metrics": {
             "$ref": "#/components/schemas/ResourceMetrics"
@@ -1099,6 +1891,134 @@
           "resource_metrics"
         ],
         "title": "DetailedTransformStatus",
+        "type": "object"
+      },
+      "DisputedPairResponse": {
+        "description": "Wire shape for a single disputed pair. Decimals serialize\nas strings for precision (same convention as /cost's\nestimated_cost_usd).",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Reason"
+          },
+          "labeled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labeled At"
+          },
+          "labeled_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labeled By User Id"
+          },
+          "node_a_canonical_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node A Canonical Key"
+          },
+          "node_a_id": {
+            "title": "Node A Id",
+            "type": "string"
+          },
+          "node_b_canonical_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node B Canonical Key"
+          },
+          "node_b_id": {
+            "title": "Node B Id",
+            "type": "string"
+          },
+          "similarity_score": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Score"
+          },
+          "source_stage": {
+            "description": "One of: property_blocker, embedding_blocker, splink_blocker, llm_review",
+            "title": "Source Stage",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of: pending, labeled_match, labeled_not_match, skipped",
+            "title": "Status",
+            "type": "string"
+          },
+          "transform_id": {
+            "title": "Transform Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "transform_id",
+          "node_a_id",
+          "node_b_id",
+          "entity_type",
+          "source_stage",
+          "status"
+        ],
+        "title": "DisputedPairResponse",
         "type": "object"
       },
       "DocumentAnalysisRequest": {
@@ -1209,6 +2129,7 @@
             "type": "string"
           },
           "properties": {
+            "additionalProperties": true,
             "description": "Properties of the relationship",
             "title": "Properties",
             "type": "object"
@@ -1286,6 +2207,7 @@
             "type": "string"
           },
           "properties": {
+            "additionalProperties": true,
             "description": "Edge properties",
             "title": "Properties",
             "type": "object"
@@ -1411,6 +2333,7 @@
             "type": "array"
           },
           "details": {
+            "additionalProperties": true,
             "title": "Details",
             "type": "object"
           },
@@ -1494,6 +2417,25 @@
         "title": "ErrorSummary",
         "type": "object"
       },
+      "FinalizeOntologyRequest": {
+        "description": "Optional request body for the finalize-ontology endpoint.\n\nWhen ``yaml_content`` is provided the server skips post-hoc\ninference and persists the supplied YAML verbatim \u2014 this is the\nUX path for \"I edited the inferred ontology and want my edits\nsaved, not re-overwritten by a fresh LLM call.\" When omitted\n(default) the server runs inference itself, mirroring the\noriginal endpoint behaviour.",
+        "properties": {
+          "yaml_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User-edited ontology YAML. When set, persisted as-is after a basic shape check; LLM inference is skipped. When omitted, the server runs post-hoc inference on the extracted graph and persists that result.",
+            "title": "Yaml Content"
+          }
+        },
+        "title": "FinalizeOntologyRequest",
+        "type": "object"
+      },
       "GeminiConfigRequest": {
         "description": "Schema for creating/updating Gemini configuration",
         "properties": {
@@ -1548,6 +2490,7 @@
             "type": "array"
           },
           "metadata": {
+            "additionalProperties": true,
             "description": "Metadata about the graph",
             "title": "Metadata",
             "type": "object"
@@ -1654,12 +2597,39 @@
         "title": "LLMUsageSummary",
         "type": "object"
       },
+      "LabelRequest": {
+        "description": "Body shape for POST /label. The ``decision`` field is the\ntyped ``Decision`` enum so the OpenAPI schema exposes the\nclosed set (``match`` / ``not_match`` / ``skip``) to generated\nclients + docs. Pre-fix it was a plain ``str`` with manual\nvalidation \u2014 the validation worked at runtime but the schema\nleaked ``string`` to downstream consumers.",
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Decision",
+            "description": "One of: match, not_match, skip."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional free-text reason the operator/agent supplies.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "LabelRequest",
+        "type": "object"
+      },
       "LimitCheckResult": {
         "description": "Schema for limit check results",
         "properties": {
           "cost_limit_usd": {
             "anyOf": [
               {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
               },
               {
@@ -1671,6 +2641,7 @@
           },
           "current_cost_usd": {
             "description": "Current cost",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Current Cost Usd",
             "type": "string"
           },
@@ -1716,6 +2687,7 @@
           "remaining_cost_usd": {
             "anyOf": [
               {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
               },
               {
@@ -1901,6 +2873,7 @@
           },
           "input_price_per_1k_tokens": {
             "description": "Input token price per 1K",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Input Price Per 1K Tokens",
             "type": "string"
           },
@@ -1953,6 +2926,7 @@
           },
           "output_price_per_1k_tokens": {
             "description": "Output token price per 1K",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Output Price Per 1K Tokens",
             "type": "string"
           },
@@ -2092,6 +3066,7 @@
             "title": "Labels"
           },
           "properties": {
+            "additionalProperties": true,
             "description": "Properties of the node",
             "title": "Properties",
             "type": "object"
@@ -2158,6 +3133,7 @@
             "type": "string"
           },
           "properties": {
+            "additionalProperties": true,
             "description": "Node properties",
             "title": "Properties",
             "type": "object"
@@ -2253,6 +3229,7 @@
           "data": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -2595,6 +3572,7 @@
             "type": "string"
           },
           "validation_config": {
+            "additionalProperties": true,
             "description": "Configuration used for validation",
             "title": "Validation Config",
             "type": "object"
@@ -2855,6 +3833,7 @@
             "type": "number"
           },
           "context": {
+            "additionalProperties": true,
             "description": "Additional context for the violation",
             "title": "Context",
             "type": "object"
@@ -3071,6 +4050,7 @@
           "validation": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3094,6 +4074,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3335,6 +4316,126 @@
         "title": "ResourceMetrics",
         "type": "object"
       },
+      "SampleDetail": {
+        "description": "Full sample payload for the detail-page view.\n\nCarries the source document, the ontology used for\nextraction, the resulting graph, and the README content\n(which explains what the sample exercises \u2014 useful as the\n\"what this demonstrates\" panel on the detail page).",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "document": {
+            "description": "Source document text the extraction ran against.",
+            "title": "Document",
+            "type": "string"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "expected_graph": {
+            "additionalProperties": true,
+            "description": "Extracted graph in GraphResponse shape (nodes + edges). Frontend renders via the same graph-viz component the real Explorer uses.",
+            "title": "Expected Graph",
+            "type": "object"
+          },
+          "ontology_yaml": {
+            "description": "Ontology used for this extraction \u2014 the schema the extractor was given. Rendered in a code block alongside the graph so visitors can see the input-side of the contract.",
+            "title": "Ontology Yaml",
+            "type": "string"
+          },
+          "readme_markdown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Markdown content of the sample's README \u2014 explains what extraction patterns this entry exercises. Rendered on the detail page as the 'about this sample' panel.",
+            "title": "Readme Markdown"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name",
+          "domain",
+          "document",
+          "ontology_yaml",
+          "expected_graph"
+        ],
+        "title": "SampleDetail",
+        "type": "object"
+      },
+      "SampleSummary": {
+        "description": "Lightweight entry for the gallery grid.\n\nThe list endpoint returns these without the heavyweight\ndocument/ontology/graph content so an unauthed gallery view\ncan render fast and small. ``GET /samples/{slug}`` fetches\nthe full payload for the detail page.",
+        "properties": {
+          "display_name": {
+            "description": "Human-readable title derived from the slug (snake_case \u2192 Title Case).",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "domain": {
+            "description": "Subject domain \u2014 used by the gallery's filter chips. Examples: Healthcare, Legal, Finance, Software. Sourced from the golden/README.md roster table.",
+            "title": "Domain",
+            "type": "string"
+          },
+          "edge_count": {
+            "minimum": 0.0,
+            "title": "Edge Count",
+            "type": "integer"
+          },
+          "node_count": {
+            "minimum": 0.0,
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "slug": {
+            "description": "Stable identifier matching the ``golden/<slug>/`` directory. Used in /samples/{slug} URLs and as the react ``key`` on the gallery grid.",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name",
+          "domain",
+          "node_count",
+          "edge_count"
+        ],
+        "title": "SampleSummary",
+        "type": "object"
+      },
+      "SamplesListResponse": {
+        "description": "Wire envelope for ``GET /api/v1/samples``.",
+        "properties": {
+          "domains": {
+            "description": "Unique domain names across all samples \u2014 for populating the gallery's filter chip list without the frontend having to derive them from the samples array.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/SampleSummary"
+            },
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "samples",
+          "domains"
+        ],
+        "title": "SamplesListResponse",
+        "type": "object"
+      },
       "SaveGraphRequest": {
         "description": "Request model for saving graph changes",
         "properties": {
@@ -3370,6 +4471,7 @@
           "data": {
             "additionalProperties": {
               "items": {
+                "additionalProperties": true,
                 "type": "object"
               },
               "type": "array"
@@ -3398,6 +4500,42 @@
           "data"
         ],
         "title": "SaveGraphResponse",
+        "type": "object"
+      },
+      "ScenarioCreateRequest": {
+        "description": "Request body for ``POST /api/v1/scenarios``.\n\n``transform_id`` is the live transform whose current graph is\nsnapshotted into the scenario at create time. ``name`` is\nunique per (user, transform) \u2014 the DB enforces this so a\nrepeat create with the same name surfaces as a 409 rather\nthan a silent second row.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional free-form description of why this scenario was created (e.g., 'what-if Alice and Alicia are the same entity'). Surfaced in list view + detail.",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Human-readable scenario name. Unique per (user, transform) \u2014 repeat creates with the same name surface as 409 Conflict.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "transform_id": {
+            "description": "Source transform whose current graph is snapshotted into the new scenario. Must belong to the authenticated user.",
+            "title": "Transform Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transform_id",
+          "name"
+        ],
+        "title": "ScenarioCreateRequest",
         "type": "object"
       },
       "SchemaGenerationContext": {
@@ -3497,6 +4635,7 @@
           "options": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3544,6 +4683,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3767,6 +4907,32 @@
         "title": "SchemaSearchResult",
         "type": "object"
       },
+      "ScoreRequest": {
+        "description": "Request body for POST /api/v1/golden/score.\n\n``expected`` is the ground-truth graph (typically loaded from\na ``golden/<slug>/expected.json`` corpus file by the CLI runner).\n``transform_id`` is a live transform owned by the authenticated\nuser \u2014 the actual graph is fetched server-side via the same\nbackend-selection logic ``/diff`` uses (in-memory vs staging\nDB), so the caller doesn't have to ship the actual payload.\n``corpus_slug`` is echoed onto the response for batch-aggregation\nconvenience (the CLI tags each report with its slug).",
+        "properties": {
+          "corpus_slug": {
+            "default": "",
+            "description": "Optional corpus directory name; echoed back on the response.",
+            "title": "Corpus Slug",
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/GraphResponse",
+            "description": "Ground-truth graph for scoring (caller-supplied)."
+          },
+          "transform_id": {
+            "description": "Live transform whose extraction will be compared against ``expected``. Must belong to the authenticated user \u2014 the loader uses the per-user storage factory, so a missing or cross-tenant transform_id surfaces as an empty actual graph (rather than a distinct 404). Scoring proceeds against the empty actual, producing an all-false-negatives report. CLI callers should treat 0-recall reports as a signal to verify the transform_id, not just to flag a regression.",
+            "title": "Transform Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected",
+          "transform_id"
+        ],
+        "title": "ScoreRequest",
+        "type": "object"
+      },
       "SendMessageRequest": {
         "description": "Request model for sending a message to a chat session",
         "properties": {
@@ -3812,6 +4978,7 @@
           "error_details": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3916,6 +5083,7 @@
           "initial_context": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4066,7 +5234,7 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/app__schemas__transform__TransformStatus"
+            "$ref": "#/components/schemas/graphora_server__schemas__transform__TransformStatus"
           },
           "upload_timestamp": {
             "format": "date-time",
@@ -4338,6 +5506,7 @@
           "daily_usage": {
             "description": "Daily usage breakdown",
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Daily Usage",
@@ -4353,11 +5522,13 @@
           },
           "estimated_total_cost_usd": {
             "description": "Estimated total cost",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Estimated Total Cost Usd",
             "type": "string"
           },
           "model_usage": {
             "additionalProperties": {
+              "additionalProperties": true,
               "type": "object"
             },
             "description": "Usage by model",
@@ -4379,6 +5550,7 @@
           "success_rate": {
             "anyOf": [
               {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
               },
               {
@@ -4510,7 +5682,7 @@
         "type": "object"
       },
       "UserConfig": {
-        "description": "Schema for user configuration containing staging and production databases",
+        "description": "Schema for user configuration containing staging and production databases.\n\nStaging DB is optional (system uses in-memory storage if not configured).\nProduction DB is required for merge operations but not for initial config.",
         "properties": {
           "createdAt": {
             "anyOf": [
@@ -4536,12 +5708,26 @@
             "title": "Id"
           },
           "prodDb": {
-            "$ref": "#/components/schemas/DatabaseConfig",
-            "description": "Production database configuration"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Production database configuration (required for merge operations)"
           },
           "stagingDb": {
-            "$ref": "#/components/schemas/DatabaseConfig",
-            "description": "Staging database configuration"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatabaseConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staging database configuration (optional - uses in-memory if not set)"
           },
           "updatedAt": {
             "anyOf": [
@@ -4562,9 +5748,7 @@
           }
         },
         "required": [
-          "userId",
-          "stagingDb",
-          "prodDb"
+          "userId"
         ],
         "title": "UserConfig",
         "type": "object"
@@ -4574,6 +5758,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4617,6 +5802,7 @@
           "sessions": {
             "description": "User's chat sessions",
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Sessions",
@@ -4631,6 +5817,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [
@@ -4662,7 +5855,7 @@
         "title": "ValidationError",
         "type": "object"
       },
-      "app__schemas__chat__SchemaRefinementRequest": {
+      "graphora_server__schemas__chat__SchemaRefinementRequest": {
         "description": "Request model for schema refinement",
         "example": {
           "context": {
@@ -4675,6 +5868,7 @@
           "context": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4732,7 +5926,7 @@
         "title": "SchemaRefinementRequest",
         "type": "object"
       },
-      "app__schemas__chat__SchemaRefinementResponse": {
+      "graphora_server__schemas__chat__SchemaRefinementResponse": {
         "description": "Response model for schema refinement",
         "properties": {
           "changes_made": {
@@ -4822,11 +6016,12 @@
         "title": "SchemaRefinementResponse",
         "type": "object"
       },
-      "app__schemas__schema__SchemaRefinementRequest": {
+      "graphora_server__schemas__schema__SchemaRefinementRequest": {
         "properties": {
           "context": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4861,7 +6056,7 @@
         "title": "SchemaRefinementRequest",
         "type": "object"
       },
-      "app__schemas__schema__SchemaRefinementResponse": {
+      "graphora_server__schemas__schema__SchemaRefinementResponse": {
         "properties": {
           "changes_made": {
             "description": "List of changes made",
@@ -4898,7 +6093,7 @@
         "title": "SchemaRefinementResponse",
         "type": "object"
       },
-      "app__schemas__transform__TransformStatus": {
+      "graphora_server__schemas__transform__TransformStatus": {
         "enum": [
           "pending",
           "validating",
@@ -4910,7 +6105,7 @@
         "title": "TransformStatus",
         "type": "string"
       },
-      "app__services__transform__status_models__TransformStatus": {
+      "graphora_server__services__transform__status_models__TransformStatus": {
         "description": "Overall status of the transformation",
         "enum": [
           "initializing",
@@ -5251,15 +6446,99 @@
         ]
       }
     },
-    "/api/v1/chat/schema-refinement": {
-      "post": {
-        "description": "Refine a schema through conversational AI with multi-turn support.\n\nThis endpoint supports both starting new refinement sessions and continuing\nexisting conversations. The AI maintains context across interactions.\n\nArgs:\n    request: Schema refinement parameters and user request\n    user_id: User identifier from header\n\nReturns:\n    Refinement result with updated schema and explanation\n\nRaises:\n    HTTPException: If refinement fails or invalid parameters",
-        "operationId": "refine_schema_api_v1_chat_schema_refinement_post",
+    "/api/v1/bench/run": {
+      "get": {
+        "description": "B4-bench public benchmark report. Returns per-extractor aggregate scores plus per-corpus-entry breakdowns. The scores are computed from extractor outputs committed under ``bench/results/`` against the golden corpus ground truth \u2014 anyone with a checkout can re-run the same computation locally and get matching numbers. The response is unauthenticated because the data is by definition public.",
+        "operationId": "run_bench_api_v1_bench_run_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchRunReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run Bench",
+        "tags": [
+          "Bench"
+        ]
+      }
+    },
+    "/api/v1/budgets/me": {
+      "delete": {
+        "description": "Remove the authenticated user's monthly budget cap.",
+        "operationId": "delete_my_budget_api_v1_budgets_me_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete My Budget Api V1 Budgets Me Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete My Budget",
+        "tags": [
+          "Budgets"
+        ]
+      },
+      "get": {
+        "description": "Get the authenticated user's monthly budget cap.",
+        "operationId": "get_my_budget_api_v1_budgets_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BudgetResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get My Budget Api V1 Budgets Me Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get My Budget",
+        "tags": [
+          "Budgets"
+        ]
+      },
+      "put": {
+        "description": "Set or update the authenticated user's monthly budget cap.",
+        "operationId": "set_my_budget_api_v1_budgets_me_put",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__schemas__chat__SchemaRefinementRequest"
+                "$ref": "#/components/schemas/BudgetWriteRequest"
               }
             }
           },
@@ -5270,7 +6549,289 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__schemas__chat__SchemaRefinementResponse"
+                  "$ref": "#/components/schemas/BudgetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set My Budget",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/budgets/me/status": {
+      "get": {
+        "description": "Current period's spend vs cap for the authenticated user, with a state label the UI / agent can use to decide whether to render an amber warning or block further spend.",
+        "operationId": "get_my_budget_status_api_v1_budgets_me_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get My Budget Status",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/capabilities/matrix": {
+      "get": {
+        "description": "M-matrix (Gate 5) \u2014 feature-compatibility matrix across all supported storage backends. Returns per-backend default capabilities + the list of dynamic flags whose runtime value depends on instance detection (e.g., Postgres+AGE's ``full_text_indexes`` depends on pg_trgm being installed). Unauthenticated \u2014 the matrix is repo-level documentation.",
+        "operationId": "get_capability_matrix_api_v1_capabilities_matrix_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityMatrixResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Capability Matrix",
+        "tags": [
+          "Capabilities"
+        ]
+      }
+    },
+    "/api/v1/chat/schema-chat/start": {
+      "post": {
+        "description": "Start a new freeflow schema chat session.\n\nThis endpoint creates a conversational session for designing knowledge graph\nschemas through natural language. Unlike the guided Q&A flow, this allows\nfreeform conversation from the start.\n\nArgs:\n    initial_schema: Optional existing schema to start with\n    title: Optional session title\n    user_id: User identifier from header\n\nReturns:\n    Session info with ID and welcome message",
+        "operationId": "start_schema_chat_api_v1_chat_schema_chat_start_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "initial_schema",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Initial Schema"
+            }
+          },
+          {
+            "in": "query",
+            "name": "title",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Title"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Schema Chat",
+        "tags": [
+          "Chat Sessions"
+        ]
+      }
+    },
+    "/api/v1/chat/schema-chat/{session_id}": {
+      "get": {
+        "description": "Get the current state of a schema chat session.\n\nArgs:\n    session_id: Chat session ID\n    user_id: User identifier from header\n\nReturns:\n    Session state with messages and current schema",
+        "operationId": "get_schema_chat_state_api_v1_chat_schema_chat__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Schema Chat State",
+        "tags": [
+          "Chat Sessions"
+        ]
+      }
+    },
+    "/api/v1/chat/schema-chat/{session_id}/stream": {
+      "post": {
+        "description": "Stream a chat response for schema generation/refinement.\n\nThis endpoint streams the AI response in real-time using Server-Sent Events (SSE).\nSchema updates are sent as separate events when the AI generates or modifies a schema.\n\nEvent types:\n- text: Regular text content\n- schema_update: New or updated schema YAML\n- done: Stream complete with final metadata\n- error: Error occurred\n\nArgs:\n    session_id: Chat session ID\n    message: User's message\n    current_schema: Current schema state (optional)\n    user_id: User identifier from header\n\nReturns:\n    StreamingResponse with SSE events",
+        "operationId": "stream_schema_chat_api_v1_chat_schema_chat__session_id__stream_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "message",
+            "required": true,
+            "schema": {
+              "title": "Message",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "current_schema",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Current Schema"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Stream Schema Chat",
+        "tags": [
+          "Chat Sessions"
+        ]
+      }
+    },
+    "/api/v1/chat/schema-refinement": {
+      "post": {
+        "description": "Refine a schema through conversational AI with multi-turn support.\n\nThis endpoint supports both starting new refinement sessions and continuing\nexisting conversations. The AI maintains context across interactions.\n\nArgs:\n    request: Schema refinement parameters and user request\n    user_id: User identifier from header\n\nReturns:\n    Refinement result with updated schema and explanation\n\nRaises:\n    HTTPException: If refinement fails or invalid parameters",
+        "operationId": "refine_schema_api_v1_chat_schema_refinement_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/graphora_server__schemas__chat__SchemaRefinementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/graphora_server__schemas__chat__SchemaRefinementResponse"
                 }
               }
             },
@@ -5726,6 +7287,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": true,
                   "title": "Response Get Available Strategies Api V1 Chunking Strategies Get",
                   "type": "object"
                 }
@@ -5801,6 +7363,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": true,
                   "title": "Response Validate Chunking Config Api V1 Chunking Validate Post",
                   "type": "object"
                 }
@@ -5926,7 +7489,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfigRequest"
+                "$ref": "#/components/schemas/ConfigUpdateRequest"
               }
             }
           },
@@ -6256,6 +7819,354 @@
         ]
       }
     },
+    "/api/v1/disputed-pairs": {
+      "get": {
+        "description": "Pending disputed pairs for the authenticated user, newest first. Optional transform_id filter restricts to a single run.",
+        "operationId": "list_pending_pairs_api_v1_disputed_pairs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "transform_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Transform Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DisputedPairResponse"
+                  },
+                  "title": "Response List Pending Pairs Api V1 Disputed Pairs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pending Pairs",
+        "tags": [
+          "Disputed Pairs"
+        ]
+      }
+    },
+    "/api/v1/disputed-pairs/transform/{transform_id}": {
+      "get": {
+        "description": "All disputed pairs (any status) for a specific transform owned by the authenticated user. Used by the per-transform review view.",
+        "operationId": "list_pairs_for_transform_api_v1_disputed_pairs_transform__transform_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DisputedPairResponse"
+                  },
+                  "title": "Response List Pairs For Transform Api V1 Disputed Pairs Transform  Transform Id  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pairs For Transform",
+        "tags": [
+          "Disputed Pairs"
+        ]
+      }
+    },
+    "/api/v1/disputed-pairs/{pair_id}": {
+      "get": {
+        "description": "Fetch a single disputed pair.",
+        "operationId": "get_pair_api_v1_disputed_pairs__pair_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pair_id",
+            "required": true,
+            "schema": {
+              "title": "Pair Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputedPairResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Pair",
+        "tags": [
+          "Disputed Pairs"
+        ]
+      }
+    },
+    "/api/v1/disputed-pairs/{pair_id}/label": {
+      "post": {
+        "description": "Apply a label to a disputed pair. Decision is one of match / not_match / skip. Re-labeling overwrites prior labels (supports the 'I changed my mind' UX without a separate undo endpoint).",
+        "operationId": "label_pair_api_v1_disputed_pairs__pair_id__label_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pair_id",
+            "required": true,
+            "schema": {
+              "title": "Pair Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputedPairResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Label Pair",
+        "tags": [
+          "Disputed Pairs"
+        ]
+      }
+    },
+    "/api/v1/golden/score": {
+      "post": {
+        "description": "Score a live transform's extraction against a caller-supplied ground-truth graph. Returns per-type and aggregate precision/recall/F1 plus raw TP/FP/FN counts. The scoring logic wraps the same identity-matching service the diff endpoint uses, so a node's canonical_id / canonical_key drives match identity \u2014 see graphora_server/services/golden_corpus/scorer.py for the full contract.",
+        "operationId": "score_against_golden_api_v1_golden_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Score Against Golden Api V1 Golden Score Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Score Against Golden",
+        "tags": [
+          "Golden Corpus"
+        ]
+      }
+    },
+    "/api/v1/graph/{base_transform_id}/diff/{compare_transform_id}": {
+      "get": {
+        "description": "B3-diff: structured graph-state diff between two transforms (same user). Returns added / removed / changed nodes and edges, plus a summary the rendering layer can use without walking the full payload. Node identity matches across transforms by canonical_id (Gate 4 ER), falling back to type:canonical_key, falling back to per-transform id.",
+        "operationId": "diff_transforms_api_v1_graph__base_transform_id__diff__compare_transform_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "base_transform_id",
+            "required": true,
+            "schema": {
+              "title": "Base Transform Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "compare_transform_id",
+            "required": true,
+            "schema": {
+              "title": "Compare Transform Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Diff Transforms Api V1 Graph  Base Transform Id  Diff  Compare Transform Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Diff Transforms",
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
     "/api/v1/graph/{transform_id}": {
       "get": {
         "description": "Retrieve nodes by transform ID and their relationships",
@@ -6394,6 +8305,196 @@
         ]
       }
     },
+    "/api/v1/graph/{transform_id}/contradictions": {
+      "get": {
+        "description": "B1-prob slice 2a: surface (target, property) pairs where the extraction pipeline emitted multiple distinct claimed values. Each contradiction carries its competing claims sorted by confidence DESC \u2014 the 'winning' value is the first entry; the rest are alternatives the contradiction detector wants you to know about. ``min_confidence`` filters low-confidence noise out of the result. Returns an empty list until B1-prob slice 2b's pipeline hooks emit claims at extraction time; the surface is live so CLI/MCP callers can build against the wire shape today.",
+        "operationId": "get_contradictions_by_transform_id_api_v1_graph__transform_id__contradictions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "default": 0.0,
+              "title": "Min Confidence",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContradictionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Contradictions By Transform Id",
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/api/v1/graph/{transform_id}/cost": {
+      "get": {
+        "description": "Per-transform LLM cost / token report. Aggregates llm_usage rows for the transform: total calls, input/output/total tokens, estimated cost in USD, distinct models used, and a per-operation-type breakdown.",
+        "operationId": "get_cost_by_transform_id_api_v1_graph__transform_id__cost_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Cost By Transform Id Api V1 Graph  Transform Id  Cost Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Cost By Transform Id",
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/api/v1/graph/{transform_id}/decisions": {
+      "get": {
+        "description": "Decision Log entries for a transform. Optionally narrow to a single target by setting ``node_id`` OR ``edge_id`` (mutually exclusive). Schema-level decisions are always returned first as the causation prefix. Without either id, returns only schema-level decisions.",
+        "operationId": "get_decisions_by_transform_id_api_v1_graph__transform_id__decisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "node_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "edge_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Edge Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Decisions By Transform Id Api V1 Graph  Transform Id  Decisions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Decisions By Transform Id",
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
     "/api/v1/merge/graph/{merge_id}/{transform_id}": {
       "get": {
         "description": "Retrieve nodes by transform ID and their relationships",
@@ -6471,6 +8572,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": true,
                   "title": "Response Get Merge Statistics Api Api V1 Merge Statistics  Merge Id  Get",
                   "type": "object"
                 }
@@ -6597,6 +8699,7 @@
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": true,
                 "title": "Changed Props",
                 "type": "object"
               }
@@ -6872,6 +8975,113 @@
           }
         ],
         "summary": "Validate Ontology",
+        "tags": [
+          "Ontology"
+        ]
+      }
+    },
+    "/api/v1/ontology-templates": {
+      "get": {
+        "description": "List all available ontology templates.\n\nReturns a list of templates with their metadata, including:\n- id: Template identifier\n- name: Human-readable name\n- description: What the template is for\n- entities: List of entity types in the template\n- relationships: List of relationship types\n- use_cases: Example document types this template works well with",
+        "operationId": "list_ontology_templates_api_v1_ontology_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Ontology Templates",
+        "tags": [
+          "Ontology"
+        ]
+      }
+    },
+    "/api/v1/ontology-templates/{template_id}": {
+      "get": {
+        "description": "Get a specific ontology template by ID.\n\nParameters:\n- template_id: Template identifier (e.g., 'company_person', 'product_catalog')\n\nReturns:\n- Template metadata and full YAML content",
+        "operationId": "get_ontology_template_api_v1_ontology_templates__template_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ontology Template",
+        "tags": [
+          "Ontology"
+        ]
+      }
+    },
+    "/api/v1/ontology-templates/{template_id}/use": {
+      "post": {
+        "description": "Create a new ontology from a template.\n\nThis endpoint copies the template content and creates a new ontology\nfor the user, which they can then customize.\n\nParameters:\n- template_id: Template identifier to use\n\nReturns:\n- id: New ontology ID\n- name: Ontology name (from template)",
+        "operationId": "use_ontology_template_api_v1_ontology_templates__template_id__use_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Use Ontology Template",
         "tags": [
           "Ontology"
         ]
@@ -7573,6 +9783,300 @@
         ]
       }
     },
+    "/api/v1/samples": {
+      "get": {
+        "description": "Lightweight gallery list \u2014 slug + display_name + domain + node/edge counts per sample. Use ``GET /samples/{slug}`` for the full document + ontology + graph payload. Unauthenticated.",
+        "operationId": "list_samples_api_v1_samples_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SamplesListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Samples",
+        "tags": [
+          "Samples"
+        ]
+      }
+    },
+    "/api/v1/samples/{slug}": {
+      "get": {
+        "description": "Full payload for a single sample: source document, ontology yaml, extracted graph (in GraphResponse shape \u2014 frontend renders via the same graph-viz component the Explorer uses), and the README markdown explaining what extraction patterns the sample exercises. Unauthenticated.",
+        "operationId": "get_sample_api_v1_samples__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No sample with that slug"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sample",
+        "tags": [
+          "Samples"
+        ]
+      }
+    },
+    "/api/v1/scenarios": {
+      "get": {
+        "description": "List scenarios owned by the authenticated user, newest first. Returns lightweight summaries (no embedded graph) so the list stays fast even when scenarios carry large materialized snapshots \u2014 use GET /api/v1/scenarios/{id} to fetch the full graph for one scenario.",
+        "operationId": "list_scenarios_api_v1_scenarios_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Scenarios Api V1 Scenarios Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Scenarios",
+        "tags": [
+          "Scenarios"
+        ]
+      },
+      "post": {
+        "description": "Create a new scenario by snapshotting the named transform's current graph. Scenario name must be unique per (user, transform_id) \u2014 a duplicate returns 409.",
+        "operationId": "create_scenario_api_v1_scenarios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Scenario Api V1 Scenarios Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
+    "/api/v1/scenarios/{scenario_id}": {
+      "delete": {
+        "description": "Delete one scenario by id. Tenant-scoped. 404 when the scenario doesn't exist for the caller (does not distinguish 'never existed' from 'belongs to another user' \u2014 see the service docstring for why).",
+        "operationId": "delete_scenario_api_v1_scenarios__scenario_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      },
+      "get": {
+        "description": "Fetch one scenario by id, including the materialized graph snapshot. Tenant-scoped: cross-tenant or missing ids return 404 without distinguishing the two.",
+        "operationId": "get_scenario_api_v1_scenarios__scenario_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Scenario Api V1 Scenarios  Scenario Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      },
+      "patch": {
+        "description": "B6-scenario slice 2b: apply node + edge mutations to the scenario's graph snapshot. The request body reuses the same SaveGraphRequest shape /graph/{tx} accepts \u2014 nodes / edges each with created / updated / deleted lists. Property updates use the same merge semantics (set a value to None to delete that key from the property bag). Mutations are validated atomically: a request that would leave any dangling edge (source or target node missing from the post-mutation state) is rejected with 422; nothing is persisted.",
+        "operationId": "patch_scenario_api_v1_scenarios__scenario_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Scenario Api V1 Scenarios  Scenario Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Scenario",
+        "tags": [
+          "Scenarios"
+        ]
+      }
+    },
     "/api/v1/schema": {
       "post": {
         "description": "Create a new schema",
@@ -7744,7 +10248,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__schemas__schema__SchemaRefinementRequest"
+                "$ref": "#/components/schemas/graphora_server__schemas__schema__SchemaRefinementRequest"
               }
             }
           },
@@ -7755,7 +10259,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__schemas__schema__SchemaRefinementResponse"
+                  "$ref": "#/components/schemas/graphora_server__schemas__schema__SchemaRefinementResponse"
                 }
               }
             },
@@ -7919,6 +10423,7 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "additionalProperties": true,
                   "title": "Response Delete Schema Api V1 Schema  Schema Id  Delete",
                   "type": "object"
                 }
@@ -8198,6 +10703,53 @@
         ]
       }
     },
+    "/api/v1/transform/schemaless/upload": {
+      "post": {
+        "description": "Extract first, refine the ontology after \u2014 no pre-extraction schema bias.\n\nUnlike `/transform/upload` (which peeks at document text to\ninfer an ontology *before* extraction), this endpoint uses\nthe default generic schema (`Person`, `Organization`,\n`Concept`, `Entity`) to run extraction, then leaves ontology\nrefinement to the agent or user via:\n\n    GET  /transform/{id}/inferred-ontology   (preview)\n    POST /transform/{id}/finalize-ontology   (save refinement)\n\nEffect on the pipeline: the LLM is **not** biased by a\npre-inferred category list \u2014 it extracts into broad buckets\nand the specific refined types emerge from what was actually\nsurfaced. Use this when you don't trust pre-extraction schema\ninference to anticipate the corpus.\n\n**Related modes**:\n\n- `POST /transform/upload` \u2014 auto-infer ontology *before*\n  extracting (faster, biases toward what's expected).\n- `POST /transform/{ontology_id}/upload` \u2014 when you already\n  have a pre-registered ontology.\n\nExample:\n\n    curl -X POST /api/v1/transform/schemaless/upload \\\n        -F \"files=@doc.pdf\"",
+        "operationId": "upload_documents_schemaless_api_v1_transform_schemaless_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_documents_schemaless_api_v1_transform_schemaless_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransformInitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Extract with generic schema, refine ontology post-hoc",
+        "tags": [
+          "Transform"
+        ]
+      }
+    },
     "/api/v1/transform/status/{transform_id}": {
       "get": {
         "description": "Get detailed transformation status\n\nArgs:\n    transform_id: Transformation ID to get status for\n    user_id: User's ID (from header)\n    include_metrics: Whether to include resource metrics\n\nReturns:\n    DetailedTransformStatus with current progress\n\nRaises:\n    HTTPException: If transform not found or other error",
@@ -8302,9 +10854,56 @@
         ]
       }
     },
+    "/api/v1/transform/upload": {
+      "post": {
+        "description": "Zero-config extraction: auto-infer the ontology, then extract.\n\nThis endpoint peeks at uploaded document text to infer an\nontology, then runs extraction biased toward that ontology.\n**No `ontology_id` required** \u2014 there is no separate\n`POST /ontology` registration step.\n\n**Related modes**:\n\n- `POST /transform/{ontology_id}/upload` \u2014 when you have a\n  pre-registered ontology you want to enforce.\n- `POST /transform/schemaless/upload` \u2014 when you want to\n  defer ontology design until *after* seeing extraction\n  results (no pre-extraction schema bias).\n\nExample:\n\n    curl -X POST /api/v1/transform/upload -F \"files=@doc.pdf\"",
+        "operationId": "upload_documents_auto_schema_api_v1_transform_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_documents_auto_schema_api_v1_transform_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransformInitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Extract with auto-inferred ontology (zero-config)",
+        "tags": [
+          "Transform"
+        ]
+      }
+    },
     "/api/v1/transform/{ontology_id}/upload": {
       "post": {
-        "description": "Upload documents for processing using Prefect workflow\n\nArgs:\n    request: FastAPI request object\n    background_tasks: FastAPI background tasks\n    ontology_id: Ontology ID to use for transformation\n    user_id: User's ID (from header)\n    files: List of files to process\n\nReturns:\n    TransformInitResponse with Prefect flow_id for tracking progress",
+        "description": "Run extraction with a pre-registered ontology.\n\nThe pipeline is biased toward the entity and relationship types\ndeclared in the ontology (registered via `POST /ontology`).\n\n**Schema-free alternatives** \u2014 no separate ontology step required:\n\n- `POST /transform/upload` \u2014 auto-infers an ontology from\n  document content *before* extracting.\n- `POST /transform/schemaless/upload` \u2014 extracts with a generic\n  schema; ontology emerges from results and is refined post-hoc\n  via `GET /transform/{id}/inferred-ontology` +\n  `POST /transform/{id}/finalize-ontology`.\n\nExample:\n\n    curl -X POST /api/v1/transform/{ontology_id}/upload \\\n        -F \"files=@doc.pdf\"",
         "operationId": "upload_documents_api_v1_transform__ontology_id__upload_post",
         "parameters": [
           {
@@ -8354,7 +10953,116 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Upload Documents",
+        "summary": "Extract using a registered ontology",
+        "tags": [
+          "Transform"
+        ]
+      }
+    },
+    "/api/v1/transform/{transform_id}/finalize-ontology": {
+      "post": {
+        "description": "Persist a refined ontology for a completed transform.\n\nTwo modes, controlled by the request body:\n\n* **No body / empty body** \u2014 runs post-hoc ontology inference on\n  the extracted graph (LLM round-trip) and persists the result.\n  Same behaviour as the original endpoint.\n* **Body with ``yaml_content``** \u2014 skips inference and persists\n  the user-supplied YAML verbatim after a basic shape check.\n\nReturns the new ``ontology_id`` + full YAML + stats in both cases.",
+        "operationId": "finalize_inferred_ontology_api_v1_transform__transform_id__finalize_ontology_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FinalizeOntologyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Finalize Inferred Ontology",
+        "tags": [
+          "Transform"
+        ]
+      }
+    },
+    "/api/v1/transform/{transform_id}/inferred-ontology": {
+      "get": {
+        "description": "Run post-hoc ontology inference on a completed extraction.\n\nUnlike the pre-extraction auto-schema path, this endpoint runs\nAFTER extraction and refines the ontology from emerged types.\nSide-effect-free: the response carries the YAML inline but the\nontology is not persisted. Callers that want to save it should\nPOST the YAML to the ontology endpoint explicitly.\n\nArgs:\n    transform_id: Completed transform to analyze.\n\nReturns:\n    JSON: {ontology_yaml: str, ontology: dict, stats: {...}}",
+        "operationId": "get_inferred_ontology_api_v1_transform__transform_id__inferred_ontology_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transform_id",
+            "required": true,
+            "schema": {
+              "title": "Transform Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Inferred Ontology",
         "tags": [
           "Transform"
         ]
@@ -8739,6 +11447,23 @@
           }
         },
         "summary": "Readiness Check"
+      }
+    },
+    "/system-info": {
+      "get": {
+        "description": "System information endpoint exposing configuration for frontend",
+        "operationId": "system_info_system_info_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "System Info"
       }
     }
   }
