@@ -154,11 +154,22 @@ graphora extract doc1.pdf doc2.pdf docs/ -o combined.json
 # Cypher output for Neo4j import
 graphora extract report.pdf -f cypher -o import.cypher
 
+# Excel workbook (sheets + cells become structured input via MarkItDown)
+graphora extract audit-workpaper.xlsx -o graph.json
+
 # Force remote mode for a one-off
 graphora extract report.pdf --mode remote
 ```
 
-Supported file formats: PDF (`.pdf`, processed with Gemini's native OCR), Word (`.doc`, `.docx`), text (`.txt`), markdown (`.md`).
+**Supported file formats** (10 total):
+
+| Category | Extensions | Notes |
+|---|---|---|
+| PDF | `.pdf` | Multi-backend with OCR fallback for scanned pages |
+| Office | `.docx`, `.xlsx`, `.pptx` | Converted to markdown via [MarkItDown](https://github.com/microsoft/markitdown) — tables / cells / slide text preserved |
+| Text | `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.html` | Ingested directly without conversion |
+
+The parser sniffs by file extension. Directories passed to `graphora extract` are recursed; files with unsupported extensions are skipped silently.
 
 ### `graphora schema infer`
 
