@@ -74,6 +74,18 @@ The Graphora API is organized around the following main resources:
 
 The dashboard suite exposes `GET /api/v1/dashboard/summary`, `/performance`, `/quality`, and `/runs` (also available as `/transform/runs` for backward compatibility).
 
+### Extraction modes
+
+The Transform API offers **three** extraction modes — pick based on how much schema work you want to do up front:
+
+| Endpoint | When to use | `ontology_id` required? |
+|---|---|---|
+| `POST /api/v1/transform/{ontology_id}/upload` | You already have a registered ontology you want to enforce | Yes — register via `POST /api/v1/ontology` first |
+| `POST /api/v1/transform/upload` | **Zero-config** — let the API infer an ontology from document text before extracting | No |
+| `POST /api/v1/transform/schemaless/upload` | You want extraction with a generic schema, then refine the ontology *after* seeing what was extracted (no pre-extraction bias) | No — refine post-hoc via `GET /transform/{id}/inferred-ontology` + `POST /transform/{id}/finalize-ontology` |
+
+If you're prototyping or onboarding a new corpus, **start with `/transform/upload`** — it's the path with the lowest setup cost. The other two are tools for specific situations (enforce a known ontology, or defer schema decisions until you have evidence).
+
 ## Client Libraries
 
 While you can use the API directly with HTTP requests, we recommend using our client libraries for a more convenient experience:
