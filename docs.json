@@ -11,6 +11,41 @@
   "navigation": {
     "tabs": [
       {
+        "tab": "GraphCheck",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "graphcheck/index",
+              "graphcheck/quickstart",
+              "graphcheck/docker-quickstart"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "graphcheck/user-guide",
+              "graphcheck/check-reference",
+              "graphcheck/ci-setup"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "graphcheck/compatibility",
+              "graphcheck/troubleshooting",
+              "graphcheck/telemetry"
+            ]
+          },
+          {
+            "group": "Agents",
+            "pages": [
+              "graphcheck/agents"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Platform",
         "groups": [
           {
