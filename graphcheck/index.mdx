@@ -1,0 +1,49 @@
+---
+title: 'GraphCheck'
+description: 'Semantic observability for Neo4j property graphs — test your graph like you test your code'
+---
+
+GraphCheck is an open-source CLI that tests a Neo4j property graph the way pytest tests code. You declare what should be true about your graph in YAML, GraphCheck runs it **read-only**, and you get deterministic pass/fail verdicts with evidence — in your terminal and in CI.
+
+```bash
+pip install graphcheck
+```
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/graphcheck/quickstart">
+    Install, connect, and get your first verdict in minutes
+  </Card>
+  <Card title="Docker Quickstart" icon="docker" href="/graphcheck/docker-quickstart">
+    A purely local demo with a seeded fraud-ring graph
+  </Card>
+  <Card title="Check Reference" icon="list-check" href="/graphcheck/check-reference">
+    Built-in check catalog with representative YAML examples
+  </Card>
+  <Card title="CI Setup" icon="gears" href="/graphcheck/ci-setup">
+    Gate merges on the exit-code contract
+  </Card>
+</CardGroup>
+
+## What it checks
+
+Three declarative patterns cover most of what a graph needs:
+
+- **Conformance** — quality rules from the built-in core pack: completeness, cardinality, orphan detection, and more. A built-in PII pack flags properties that look like personal data, with labeled confidence.
+- **Competency** — the business questions your graph exists to answer, as executable assertions about shape and cardinality.
+- **Drift** — the current graph compared against a baseline snapshot.
+
+## The promises
+
+A tool pointed at production data earns trust through guarantees:
+
+- **Read-only, always.** On Neo4j Enterprise and Developer editions GraphCheck expects a server-enforced read-only credential; on every edition a server-side `EXPLAIN` preflight rejects write-capable queries.
+- **Evidence on every failure.** Findings carry graph-element pointers or the aggregate measurements behind a drift result, plus the compiled query.
+- **Deterministic verdicts.** Same graph, same suite, same result. No LLM decides pass or fail.
+- **Check execution stays local.** With [telemetry](/graphcheck/telemetry) disabled — the default — running checks sends nothing anywhere: results are written locally and the HTML report opens offline. Opt-in telemetry sends only the anonymous, documented events. The only egress of your content — disclosed baseline metadata and the documents you select — is the optional `graphcheck generate` command, which sends them to your configured model provider; see the [User Guide](/graphcheck/user-guide#generate-check-suggestions).
+
+## Links
+
+- [GitHub repository](https://github.com/graphora/graphcheck)
+- [PyPI package](https://pypi.org/project/graphcheck/)
+- [Technical walkthrough](https://graphora.io/blog/graphcheck-test-your-neo4j-graph)
+- [Agent Guide](/graphcheck/agents) — the MCP surface for AI agents

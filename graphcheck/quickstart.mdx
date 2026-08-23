@@ -1,0 +1,72 @@
+---
+title: 'Quickstart'
+description: 'Install GraphCheck, connect it to Neo4j, and get your first verdict'
+---
+
+GraphCheck needs Python 3.12+ and a running Neo4j — the 5 LTS line or a documented calendar-version release (see [compatibility](/graphcheck/compatibility)). No account, no cloud.
+
+<Info>
+No Neo4j at hand? The [Docker Quickstart](/graphcheck/docker-quickstart) starts a local demo database with a seeded sample graph.
+</Info>
+
+## 1. Install
+
+```bash
+pip install graphcheck
+graphcheck --version
+```
+
+The base install is lean. Optional capabilities live behind extras: `pip install "graphcheck[generate]"` for AI-assisted check drafting, `pip install "graphcheck[mcp]"` for the [agent server](/graphcheck/agents).
+
+## 2. Scaffold a project
+
+In the directory that should hold your checks:
+
+```bash
+graphcheck init
+```
+
+This writes three files and probes your Neo4j:
+
+- `graphcheck.yml` — project configuration
+- `profiles.yml` — connection details (gitignored; use `password_env` in CI)
+- `checks/example.yml` — a starter suite
+
+Point `profiles.yml` at your database:
+
+```yaml
+default: local
+profiles:
+  local:
+    uri: bolt://localhost:7687
+    user: neo4j
+    password_env: NEO4J_PASSWORD
+    database: neo4j
+```
+
+## 3. Verify the connection
+
+```bash
+graphcheck debug
+```
+
+This reports the server version and edition, what your credentials can and cannot see, and any blocked checks. Every error message contains its fix — see [Troubleshooting](/graphcheck/troubleshooting) for the full code list.
+
+## 4. Run
+
+```bash
+graphcheck run
+```
+
+You get a severity-weighted score, a coverage table, and two artifacts under `.graphcheck/runs/latest/`:
+
+- `results.json` — machine-readable verdicts, evidence, coverage, and score
+- `report.html` — a self-contained report that opens offline
+
+Exit codes are a stable CI contract: `0` all executed checks passed · `1` an error-severity finding or execution error · `2` warnings or incomplete evaluation · `3` the run could not be prepared or completed.
+
+## Next steps
+
+- Write checks for your own graph: [Check Reference](/graphcheck/check-reference)
+- Run it on every pull request: [CI Setup](/graphcheck/ci-setup)
+- The full command surface: [User Guide](/graphcheck/user-guide)
